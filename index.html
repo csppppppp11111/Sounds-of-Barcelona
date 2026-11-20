@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sounds of Barcelona</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Canto superior esquerdo: título do projeto -->
+  <h1 class="titulo">SOUNDS OF BARCELONA</h1>
+
+  <!-- Canto superior direito: botão para ligar / desligar o som -->
+  <button class="som" id="botaoSom">&#9675; SOUND OFF</button>
+
+  <!-- A bola de pontos é desenhada aqui -->
+  <canvas id="tela"></canvas>
+
+  <!-- Canto inferior esquerdo: coordenadas do sítio onde o som foi gravado -->
+  <p class="agora" id="agora"></p>
+
+  <!-- Canto inferior direito: botão para adicionar uma gravação -->
+  <button class="adicionar" id="botaoAdicionar">+ ADD YOUR SOUND</button>
+
+  <!-- Painel para adicionar um som (escondido até se carregar no botão) -->
+  <div class="painel" id="painel" hidden>
+    <p class="painel-titulo">ADD A SOUND OF BARCELONA</p>
+
+    <!-- 1. A gravação -->
+    <p class="etiqueta">1 · RECORDING</p>
+    <label class="botao-linha">
+      CHOOSE FILE
+      <input type="file" id="campoFicheiro" accept="audio/*" hidden>
+    </label>
+    <span class="valor" id="nomeFicheiro">NO FILE CHOSEN</span>
+
+    <!-- 2. Onde foi gravado -->
+    <p class="etiqueta">2 · WHERE DID YOU RECORD IT?</p>
+    <button class="botao-linha" id="botaoGPS" type="button">USE MY LOCATION</button>
+    <span class="valor">OR PASTE COORDINATES:</span>
+    <input class="campo" id="campoLocal" type="text"
+           placeholder="41.3809, 2.1734" autocomplete="off" spellcheck="false">
+
+    <!-- Aviso: dentro / fora de Barcelona -->
+    <p class="mensagem" id="mensagem"></p>
+
+    <!-- 3. Confirmar -->
+    <div class="acoes">
+      <button class="botao-linha" id="botaoCancelar" type="button">CANCEL</button>
+      <button class="botao-linha principal" id="botaoConfirmar" type="button" disabled>ADD</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
