@@ -31,10 +31,12 @@ const PARAM = {
   pontos: window.innerWidth < 700 ? 4500 : 9000, // menos pontos no telemóvel
   tamanho: 0.27,        // raio da bola em relação ao lado menor do ecrã
   rotacao: 0.12,        // velocidade de rotação
-  forcaDobras: 0.14,    // quanto os graves fazem crescer as dobras
+  forcaDobras: 0.18,    // quanto os graves fazem crescer as dobras
   forcaEspetro: 0.10,   // quanto cada frequência empurra os seus pontos
-  arcoIris: 1.4,        // quantas voltas ao arco-íris do topo à base
-  velocidadeCor: 2.5,   // quanto o volume faz as cores rodar
+  corCentro: 262,       // cor da parte virada para nós (0–360): violeta
+  corBorda: 28,         // cor das bordas e das cristas: laranja dourado
+  forcaCor: 40,         // quanto o som faz mudar as cores
+  tamanhoPonto: 1.0,    // tamanho dos pontos (1 = normal)
 };
 
 
@@ -59,26 +61,31 @@ ajustarTela();
 
 /* ---------------------------------------------------------------------
    4. CRIAR OS PONTOS DA ESFERA
-   Usamos a "espiral de Fibonacci": espalha os pontos de forma regular
-   pela superfície, sem amontoados nos polos.
+   Os pontos ficam em GRELHA: linhas (paralelos) de cima a baixo e,
+   em cada linha, pontos à mesma distância uns dos outros. É isto que
+   dá as "riscas" de pontos que se veem nas dobras.
    --------------------------------------------------------------------- */
 const pontos = [];
-const anguloDourado = Math.PI * (3 - Math.sqrt(5));
+const LINHAS = Math.round(Math.sqrt(PARAM.pontos / 1.27));   // nº de paralelos
 
-for (let i = 0; i < PARAM.pontos; i++) {
-  const y = 1 - (i / (PARAM.pontos - 1)) * 2;   // de 1 (topo) a -1 (base)
-  const raio = Math.sqrt(1 - y * y);
-  const theta = anguloDourado * i;
-  const x = Math.cos(theta) * raio;
-  const z = Math.sin(theta) * raio;
-  const angulo = Math.atan2(z, x);               // à volta do eixo vertical
+for (let l = 0; l < LINHAS; l++) {
+  const lat = Math.PI * ((l + 0.5) / LINHAS - 0.5);   // de -90° a +90°
+  const y = Math.sin(lat);
+  const raio = Math.cos(lat);
+  // linhas maiores (perto do equador) levam mais pontos
+  const naLinha = Math.max(6, Math.round(LINHAS * 2 * raio));
+  for (let k = 0; k < naLinha; k++) {
+    const angulo = (k / naLinha) * Math.PI * 2;
+    const x = Math.cos(angulo) * raio;
+    const z = Math.sin(angulo) * raio;
 
-  // Cada ponto "ouve" uma frequência: em cima os agudos, em baixo os graves
-  const latitude = (1 - y) / 2;
-  const mistura = (Math.sin(theta * 3) + 1) * 0.08;
-  const faixa = Math.min(0.99, Math.abs(1 - latitude - mistura));
+    // Cada ponto "ouve" uma frequência: em cima os agudos, em baixo os graves
+    const latitude = (1 - y) / 2;
+    const mistura = (Math.sin(angulo * 3) + 1) * 0.08;
+    const faixa = Math.min(0.99, Math.abs(1 - latitude - mistura));
 
-  pontos.push({ x, y, z, angulo, faixa });
+    pontos.push({ x, y, z, angulo, faixa });
+  }
 }
 
 // Tabelas para guardar os pontos já calculados em cada fotograma
@@ -119,10 +126,13 @@ function forma(x, y, z, angulo) {
 
 
 /* ---------------------------------------------------------------------
-   6. PALETA DE CORES (arco-íris completo, bem saturado)
+   6. PALETA DE CORES
+   Guardamos as 360 cores do círculo cromático de antemão.
+   A bola usa duas: violeta no centro e laranja nas bordas
+   (passando pelo rosa e o vermelho), como na referência.
    --------------------------------------------------------------------- */
 const paleta = [];
-for (let h = 0; h < 360; h++) paleta.push(`hsl(${h}, 100%, 58%)`);
+for (let h = 0; h < 360; h++) paleta.push(`hsl(${h}, 100%, 62%)`);
 
 
 /* ---------------------------------------------------------------------
@@ -458,7 +468,6 @@ const DISTANCIA = 3.2;   // distância da "câmara" (perspetiva)
 // Luz vinda de cima, à esquerda, da frente (dá o volume 3D)
 const LUZ = (() => { const l = [-0.45, 0.55, 0.7]; const n = Math.hypot(...l); return l.map(v => v / n); })();
 
-let rodaCor = 0;   // as cores vão rodando; mais depressa quando o som é forte
 
 function desenhar(tempoMs) {
   const t = tempoMs / 1000;
@@ -473,8 +482,12 @@ function desenhar(tempoMs) {
   F.nDobras += ((8 + som.medios * 10) - F.nDobras) * 0.02;   // devagar, sem saltos
 
   // --- As cores reagem ao som ---
-  rodaCor += 0.15 + som.volume * PARAM.velocidadeCor;      // som forte = rodam mais
-  const desvioCor = rodaCor + (som.brilho - 0.5) * 120;     // agudos/graves puxam a cor
+  // Sons agudos puxam as duas cores num sentido, sons graves no outro;
+  // quando o som é forte, o laranja das bordas "invade" o centro.
+  const desvioCor = (som.brilho - 0.5) * PARAM.forcaCor + Math.sin(t * 0.07) * 12;
+  const invasao = som.volume * 0.25;
+  let distCor = PARAM.corBorda - PARAM.corCentro;            // caminho mais curto
+  if (distCor < 0) distCor += 360;                           // violeta -> rosa -> laranja
 
   // Limpa o ecrã com preto
   ctx.globalAlpha = 1;
@@ -518,8 +531,8 @@ function desenhar(tempoMs) {
     const ny = p.y * cosX - nz1 * sinX;
     const nz = p.y * sinX + nz1 * cosX;
     const difusa = Math.max(0, nx * LUZ[0] + ny * LUZ[1] + nz * LUZ[2]);
-    let luz = (0.4 + 0.75 * difusa) * (1 - inclinacao * 0.25);
-    luz = Math.max(0.12, Math.min(1.25, luz));
+    let luz = (0.55 + 0.6 * difusa) * (1 - inclinacao * 0.25);
+    luz = Math.max(0.3, Math.min(1.25, luz));
 
     // 5) Perspetiva
     const persp = DISTANCIA / (DISTANCIA - z2);
@@ -529,23 +542,28 @@ function desenhar(tempoMs) {
 
     // Frente forte, trás muito apagada -> lê-se como um objeto sólido
     const frente = Math.max(0, (z2 + 1.2) / 2.4);
-    alfas[i] = Math.min(1, luz * (0.06 + 0.94 * frente * frente) * (0.85 + som.volume * 0.5));
-    tamanhos[i] = (0.6 + frente * 1.6) * persp;
+    alfas[i] = Math.min(1, luz * (0.1 + 0.9 * frente * frente) * (1 + som.volume * 0.4));
+    tamanhos[i] = (0.6 + frente * 1.7) * persp * PARAM.tamanhoPonto;
 
-    // 6) Cor: arco-íris do topo à base + listas que seguem as dobras
-    //    (topo = vermelho, depois amarelo, verde, ciano, azul, magenta...)
-    let matiz = (1 - p.y) * 0.5 * 360 * PARAM.arcoIris + desloc * 650 + desvioCor;
+    // 6) Cor: violeta onde a bola está virada para nós, laranja nas
+    //    bordas e nas cristas das dobras (que "apanham a luz")
+    let borda = 1 - Math.abs(nz);                       // 0 = de frente, 1 = de lado
+    borda = Math.pow(Math.min(1, borda * 1.45), 1.1) + desloc * 1.8 + invasao;     // cristas puxam para laranja
+    borda = Math.max(0, Math.min(1, borda));
+    let matiz = PARAM.corCentro + borda * distCor + desvioCor;
     matizes[i] = ((Math.round(matiz) % 360) + 360) % 360;
   }
 
-  // Desenha primeiro os pontos de trás, depois os da frente
+  // Desenha primeiro os pontos de trás, depois os da frente.
+  // Os pontos são redondos (círculos), como na referência.
   for (let passo = 0; passo < 2; passo++) {
     for (let i = 0; i < N; i++) {
       if ((profundidade[i] >= 0) !== (passo === 1)) continue;
       ctx.fillStyle = paleta[matizes[i]];
       ctx.globalAlpha = alfas[i];
-      const tam = tamanhos[i];
-      ctx.fillRect(ecraX[i] - tam / 2, ecraY[i] - tam / 2, tam, tam);
+      ctx.beginPath();
+      ctx.arc(ecraX[i], ecraY[i], tamanhos[i] * 0.6, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
