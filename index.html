@@ -17,7 +17,9 @@
   <!-- A bola de pontos é desenhada aqui -->
   <canvas id="tela"></canvas>
 
-  <!-- Canto inferior esquerdo: coordenadas do sítio onde o som foi gravado -->
+  <!-- Canto inferior esquerdo: a rua e, por baixo, as coordenadas
+       do sítio onde o som foi gravado -->
+  <p class="rua" id="rua"></p>
   <p class="agora" id="agora"></p>
 
   <!-- Canto inferior direito: botão para adicionar uma gravação -->
@@ -35,15 +37,19 @@
     </label>
     <span class="valor" id="nomeFicheiro">NO FILE CHOSEN</span>
 
-    <!-- 2. Onde foi gravado -->
+    <!-- 2. Onde foi gravado: escrever a rua (ou usar o GPS) -->
     <p class="etiqueta">2 · WHERE DID YOU RECORD IT?</p>
-    <button class="botao-linha" id="botaoGPS" type="button">USE MY LOCATION</button>
-    <span class="valor">OR PASTE COORDINATES:</span>
-    <input class="campo" id="campoLocal" type="text"
-           placeholder="41.3809, 2.1734" autocomplete="off" spellcheck="false">
+    <span class="valor">WRITE THE STREET:</span>
+    <div class="linha-procura">
+      <input class="campo" id="campoLocal" type="text"
+             placeholder="CARRER DE MALLORCA 401" autocomplete="off" spellcheck="false">
+      <button class="botao-linha" id="botaoProcurar" type="button">FIND</button>
+    </div>
+    <button class="botao-linha" id="botaoGPS" type="button">OR USE MY LOCATION</button>
 
-    <!-- Aviso: dentro / fora de Barcelona -->
+    <!-- Aviso: rua encontrada (dentro / fora de Barcelona) -->
     <p class="mensagem" id="mensagem"></p>
+    <p class="creditos">STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS</p>
 
     <!-- 3. Confirmar -->
     <div class="acoes">
