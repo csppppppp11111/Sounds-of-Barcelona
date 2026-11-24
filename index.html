@@ -2,7 +2,125 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sounds of Barcelona</title>
+  <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body>
+
+  <!-- Canto superior esquerdo: título e número de sons no arquivo -->
+  <header class="topo-esq">
+    <h1 class="titulo">SOUNDS OF BARCELONA</h1>
+    <p class="contador" id="contador">AN ARCHIVE OF THE CITY'S SOUNDS</p>
+  </header>
+
+  <!-- Canto superior direito: ABOUT e som -->
+  <nav class="topo-dir">
+    <button class="link" id="botaoAbout" type="button">ABOUT</button>
+    <button class="link" id="botaoSom" type="button">&#9675; SOUND OFF</button>
+  </nav>
+
+  <!-- A esfera -->
+  <canvas id="tela"></canvas>
+
+  <!-- Canto inferior esquerdo: o som que está a tocar -->
+  <div class="info" id="info">
+    <p class="descricao" id="descricao"></p>
+    <p class="rua" id="rua"></p>
+    <p class="agora" id="agora"></p>
+  </div>
+
+  <!-- Canto inferior direito: objeto (abre outra página) e adicionar som -->
+  <div class="acoes-dir">
+    <a class="link" href="objeto.html">&#8599; GENERATE OBJECT</a>
+    <button class="link" id="botaoAdicionar" type="button">+ ADD YOUR SOUND</button>
+  </div>
+
+  <!-- ===== Painel ABOUT: breve explicação ===== -->
+  <div class="painel painel-about" id="painelAbout" hidden>
+    <p class="painel-titulo">ABOUT</p>
+    <p class="texto">
+      SOUNDS OF BARCELONA is a collective archive of the sounds of the city:
+      markets, metro, birds, voices, bells, construction work.
+    </p>
+    <p class="texto">
+      The sphere is Barcelona, with its real relief: the sea, Montju&iuml;c
+      and the city rising to the hills of Collserola. Every sound leaves a
+      mark in the place where it was recorded. Low sounds make wide marks,
+      loud sounds make tall marks, high sounds add small bumps around them.
+      When a sound plays, its neighbourhood ripples.
+    </p>
+    <p class="texto">
+      Anyone can add a sound. The archive is then turned into an object:
+      a sphere that keeps only the marks of the sounds, to 3D print.
+    </p>
+    <p class="creditos">RELIEF: TERRAIN TILES ON AWS (MAPZEN) &middot; STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS &middot; SOUNDS STORED WITH SUPABASE</p>
+    <div class="acoes">
+      <span></span>
+      <button class="botao-linha" id="fecharAbout" type="button">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- ===== Painel ADD YOUR SOUND ===== -->
+  <div class="painel" id="painel" hidden>
+    <p class="painel-titulo">ADD A SOUND OF BARCELONA</p>
+
+    <p class="etiqueta">1 · RECORDING</p>
+    <label class="botao-linha">
+      CHOOSE FILE
+      <input type="file" id="campoFicheiro" accept="audio/*" hidden>
+    </label>
+    <span class="valor" id="nomeFicheiro">NO FILE CHOSEN</span>
+
+    <p class="etiqueta">2 · WHERE IN BARCELONA?</p>
+    <div class="linha-procura">
+      <input class="campo" id="campoLocal" type="text"
+             placeholder="CARRER DE MALLORCA 401" autocomplete="off" spellcheck="false">
+      <button class="botao-linha" id="botaoProcurar" type="button">FIND</button>
+    </div>
+    <button class="botao-linha" id="botaoGPS" type="button">OR USE MY LOCATION</button>
+    <p class="mensagem" id="mensagem"></p>
+
+    <p class="etiqueta">3 · WHEN?</p>
+    <input class="campo" id="campoData" type="date">
+
+    <p class="etiqueta">4 · WHAT CAN WE HEAR?</p>
+    <input class="campo" id="campoDescricao" type="text" maxlength="80"
+           placeholder="FISH SELLERS AT LA BOQUERIA" autocomplete="off">
+
+    <p class="creditos">STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS</p>
+
+    <div class="acoes">
+      <button class="botao-linha" id="botaoCancelar" type="button">CANCEL</button>
+      <button class="botao-linha principal" id="botaoConfirmar" type="button" disabled>ADD</button>
+    </div>
+  </div>
+
+  <!-- O ABOUT abre e fecha aqui mesmo (funciona mesmo que o script.js falhe) -->
+  <script>
+    (function () {
+      var about = document.getElementById("painelAbout");
+      document.getElementById("botaoAbout").onclick = function () {
+        document.getElementById("painel").hidden = true;
+        document.getElementById("botaoAdicionar").hidden = false;
+        about.hidden = !about.hidden;
+      };
+      document.getElementById("fecharAbout").onclick = function () { about.hidden = true; };
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") about.hidden = true; });
+    })();
+  </script>
+
+  <!-- O "?v=8" obriga o browser a ir buscar a versão nova dos ficheiros -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js?v=8"></script>
+  <script src="comum.js?v=8"></script>
+  <script src="script.js?v=8"></script>
+</body>
+</html>>
   <title>Sounds of Barcelona</title>
   <link rel="stylesheet" href="style.css">
 </head>
