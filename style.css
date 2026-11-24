@@ -1,17 +1,14 @@
-/* ===== Sounds of Barcelona — estilo ===== */
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
   width: 100%;
   height: 100%;
-  background: #000;          /* fundo preto */
-  overflow: hidden;          /* sem barras de deslocamento */
+  background: #000;
+  overflow: hidden;
   color: #fff;
   font-family: "Courier New", Courier, monospace;
 }
 
-/* A tela ocupa o ecrã inteiro, atrás dos textos */
 #tela {
   position: fixed;
   inset: 0;
@@ -20,7 +17,6 @@ html, body {
   display: block;
 }
 
-/* Textos dos cantos: pequenos, maiúsculas, espaçados */
 .titulo,
 .som,
 .agora {
@@ -54,7 +50,6 @@ html, body {
   color: #777;
 }
 
-/* Nome da rua, por cima das coordenadas (troca com um fade suave) */
 .rua {
   position: fixed;
   z-index: 2;
@@ -71,7 +66,6 @@ html, body {
   transition: opacity 0.5s;
 }
 
-/* Telemóvel: margens mais pequenas */
 @media (max-width: 600px) {
   .titulo, .som, .agora { font-size: 11px; }
   .titulo { top: 20px; left: 20px; }
@@ -80,7 +74,6 @@ html, body {
   .rua    { bottom: 40px; left: 20px; font-size: 11px; max-width: calc(100% - 40px); }
 }
 
-/* ===== Botão "+ ADD YOUR SOUND" (canto inferior direito) ===== */
 .adicionar {
   position: fixed;
   z-index: 2;
@@ -98,7 +91,6 @@ html, body {
 }
 .adicionar:hover { opacity: 1; }
 
-/* ===== Painel para adicionar um som ===== */
 .painel {
   position: fixed;
   z-index: 3;
@@ -121,7 +113,6 @@ html, body {
 .etiqueta      { color: #fff; margin-top: 10px; }
 .valor         { color: #777; word-break: break-all; }
 
-/* Botões do painel: texto com um traço fino à volta */
 .botao-linha {
   align-self: flex-start;
   background: none;
@@ -161,20 +152,12 @@ html, body {
   margin-top: 8px;
 }
 
-@media (max-width: 600px) {
-  .adicionar { bottom: 20px; right: 20px; font-size: 11px; }
-  .painel    { bottom: 20px; right: 20px; }
-}
-
-/* Campo da rua + botão FIND lado a lado */
 .linha-procura { display: flex; gap: 10px; align-items: flex-end; }
 .linha-procura .campo { flex: 1; min-width: 0; }
-.botao-linha:disabled.a-procurar { opacity: 0.5; }
 
-/* Crédito obrigatório do OpenStreetMap */
 .creditos { color: #444; font-size: 9px; letter-spacing: 0.12em; }
 
-/* Telemóvel: o botão de adicionar sobe para não tapar a rua */
 @media (max-width: 600px) {
-  .adicionar { bottom: 70px; }
+  .adicionar { bottom: 70px; right: 20px; font-size: 11px; }
+  .painel    { bottom: 20px; right: 20px; }
 }
