@@ -8,20 +8,88 @@
 </head>
 <body>
 
-  <h1 class="titulo">SOUNDS OF BARCELONA</h1>
+  <!-- Canto superior esquerdo: título e número de sons no arquivo -->
+  <header class="topo-esq">
+    <h1 class="titulo">SOUNDS OF BARCELONA</h1>
+    <p class="contador" id="contador">AN ARCHIVE OF THE CITY'S SOUNDS</p>
+  </header>
 
-  <button class="som" id="botaoSom">&#9675; SOUND OFF</button>
+  <!-- Canto superior direito: ABOUT e som -->
+  <nav class="topo-dir">
+    <button class="link" id="botaoAbout">ABOUT</button>
+    <button class="link" id="botaoSom">&#9675; SOUND OFF</button>
+  </nav>
 
+  <!-- A esfera -->
   <canvas id="tela"></canvas>
 
-  <div class="info">
+  <!-- Canto inferior esquerdo: o som que está a tocar -->
+  <div class="info" id="info">
     <p class="descricao" id="descricao"></p>
     <p class="rua" id="rua"></p>
     <p class="agora" id="agora"></p>
   </div>
 
-  <button class="adicionar" id="botaoAdicionar">+ ADD YOUR SOUND</button>
+  <!-- Canto inferior direito: objeto e adicionar som -->
+  <div class="acoes-dir">
+    <button class="link" id="botaoObjeto">&#8595; GENERATE OBJECT</button>
+    <button class="link" id="botaoAdicionar">+ ADD YOUR SOUND</button>
+  </div>
 
+  <!-- ===== Painel ABOUT ===== -->
+  <div class="painel painel-about" id="painelAbout" hidden>
+    <p class="painel-titulo">ABOUT</p>
+    <p class="texto">
+      SOUNDS OF BARCELONA is a collective archive of the city's sounds:
+      markets, metro, birds, voices, bells, construction.
+      Barcelona keeps changing, and so does the way it sounds.
+      Anyone can add a recording made in Barcelona, with the street,
+      the day and what we can hear.
+    </p>
+
+    <p class="etiqueta">HOW TO READ THE SPHERE</p>
+    <ul class="legenda">
+      <li><span class="simbolo">&#9711;</span> The top of the sphere is Barcelona, with its real relief: the sea in front, Montju&iuml;c, the city rising to the Collserola hills.</li>
+      <li><span class="simbolo">&#9673;</span> Every sound leaves a round mark where it was recorded. Click a mark to hear it.</li>
+      <li><span class="simbolo">&#8978;</span> Low sounds (metro, traffic) make wide marks.</li>
+      <li><span class="simbolo">&#9650;</span> Loud sounds make tall marks.</li>
+      <li><span class="simbolo">&#8728;</span> High sounds (birds, bells) add small bumps around the mark.</li>
+      <li><span class="simbolo">&#8776;</span> When a sound plays, its neighbourhood ripples with it.</li>
+    </ul>
+
+    <p class="etiqueta">THE OBJECT</p>
+    <p class="texto">
+      GENERATE OBJECT exports a sphere with a flat base, carrying the marks
+      of every sound in the archive, but not the city. A silent version of
+      Barcelona, to 3D print. Each print is a portrait of the archive on one day.
+    </p>
+
+    <p class="creditos">RELIEF: TERRAIN TILES ON AWS (MAPZEN) &middot; STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS &middot; SOUNDS STORED WITH SUPABASE</p>
+
+    <div class="acoes">
+      <span></span>
+      <button class="botao-linha" id="fecharAbout" type="button">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- ===== Painel GENERATE OBJECT ===== -->
+  <div class="painel" id="painelObjeto" hidden>
+    <p class="painel-titulo">GENERATE OBJECT</p>
+    <p class="texto" id="textoObjeto">
+      A sphere with the marks of every sound on top, as a 3D-printable
+      file (STL). The base is flat, so it stands on the table.
+    </p>
+    <p class="etiqueta">SIZE</p>
+    <button class="botao-linha" id="objeto60" type="button">PROTOTYPE &middot; 6 CM</button>
+    <button class="botao-linha" id="objeto120" type="button">FINAL &middot; 12 CM</button>
+    <p class="mensagem" id="mensagemObjeto"></p>
+    <div class="acoes">
+      <span></span>
+      <button class="botao-linha" id="fecharObjeto" type="button">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- ===== Painel ADD YOUR SOUND ===== -->
   <div class="painel" id="painel" hidden>
     <p class="painel-titulo">ADD A SOUND OF BARCELONA</p>
 
