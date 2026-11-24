@@ -21,6 +21,20 @@ html, body {
 }
 #tela.sobre-marca { cursor: pointer; }
 
+/* Página do objeto: o 3D ocupa o ecrã todo */
+#tela3d {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+#tela3d.a-arrastar { cursor: grabbing; }
+.info-objeto p { white-space: normal; }
+
+/* Textos e botões dos cantos */
 .topo-esq, .topo-dir, .acoes-dir, .info {
   position: fixed;
   z-index: 2;
@@ -48,7 +62,9 @@ html, body {
   transition: opacity 0.3s;
 }
 .link:hover, .link.ligado { opacity: 1; }
+a.link { text-decoration: none; }
 
+/* Canto inferior esquerdo: descrição, rua · dia, coordenadas */
 .info {
   bottom: 28px;
   left: 32px;
@@ -61,6 +77,7 @@ html, body {
 .rua       { color: #bbb; }
 .agora     { color: #777; }
 
+/* Painéis */
 .painel {
   position: fixed;
   z-index: 3;
@@ -85,11 +102,7 @@ html, body {
 .painel-titulo { color: #fff; margin-bottom: 6px; }
 .etiqueta      { color: #fff; margin-top: 10px; }
 .valor         { color: #777; word-break: break-all; }
-.texto         { color: #aaa; line-height: 1.7; letter-spacing: 0.08em; }
-
-.legenda { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.legenda li { color: #aaa; line-height: 1.6; letter-spacing: 0.08em; display: flex; gap: 10px; }
-.simbolo { color: #f0a03c; width: 14px; flex-shrink: 0; text-align: center; }
+.texto         { color: #aaa; line-height: 1.7; letter-spacing: 0.08em; margin-bottom: 4px; }
 
 .botao-linha {
   align-self: flex-start;
@@ -132,6 +145,7 @@ html, body {
 
 .acoes { display: flex; justify-content: space-between; margin-top: 8px; }
 
+/* Telemóvel */
 @media (max-width: 600px) {
   .topo-esq, .topo-dir, .acoes-dir, .info { font-size: 11px; }
   .topo-esq  { top: 20px; left: 20px; }
