@@ -5,7 +5,9 @@
    ===================================================================== */
 
 
-/* A. SUPABASE (o endereço e a chave estão no config.js) */
+/* ---------------------------------------------------------------------
+   A. SUPABASE (o endereço e a chave estão no config.js)
+   --------------------------------------------------------------------- */
 let db = null;
 try {
   const url = window.SUPABASE_URL, chave = window.SUPABASE_CHAVE;
@@ -36,8 +38,10 @@ async function lerArquivo() {
 }
 
 
-/* B. BARCELONA NA ESFERA
-   O centro da cidade fica no topo e os bairros afastados descem pelos lados. */
+/* ---------------------------------------------------------------------
+   B. BARCELONA NA ESFERA
+   O centro da cidade fica no topo e os bairros afastados descem pelos lados.
+   --------------------------------------------------------------------- */
 const BARCELONA = { latMin: 41.317, latMax: 41.469, lonMin: 2.052, lonMax: 2.229 };
 const CAP = -0.25;                       // até onde desce a cidade (1 = só o topo, -1 = tudo)
 const CENTRO = { lat: 41.402, lon: 2.142 };
@@ -62,8 +66,12 @@ function esferaParaDisco(x, y, z) {
 function bordaSuave(s) { const t = Math.min(1, Math.max(0, (1 - s) / 0.1)); return t * t * (3 - 2 * t); }
 
 
-/* C. AS MARCAS DOS SONS (redondas)
-   g = graves -> marca mais larga · v = volume -> mais alta · a = agudos -> lombas à volta */
+/* ---------------------------------------------------------------------
+   C. AS MARCAS DOS SONS (redondas)
+   g = graves  -> marca mais larga
+   v = volume  -> marca mais alta
+   a = agudos  -> pequenas lombas à volta
+   --------------------------------------------------------------------- */
 function prepararMarca(som) {
   const s = som.assinatura;
   const c = geoParaDisco(som.lat, som.lon);
@@ -98,7 +106,9 @@ function marcasNoDisco(lista, X, Y, forca) {
 }
 
 
-/* D. IMPRESSÃO DIGITAL DO SOM (graves, médios, agudos, volume, picos) */
+/* ---------------------------------------------------------------------
+   D. IMPRESSÃO DIGITAL DO SOM (graves, médios, agudos, volume, picos)
+   --------------------------------------------------------------------- */
 function fft(re, im) {
   const n = re.length;
   for (let i = 1, j = 0; i < n; i++) {
@@ -172,7 +182,9 @@ async function analisarSom(fonte) {
 }
 
 
-/* E. DATAS */
+/* ---------------------------------------------------------------------
+   E. DATAS
+   --------------------------------------------------------------------- */
 function hojeISO() {
   const d = new Date();
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
