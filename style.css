@@ -1,3 +1,5 @@
+/* ===== Sounds of Barcelona — estilo ===== */
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
@@ -15,71 +17,49 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+  cursor: default;
 }
+#tela.sobre-marca { cursor: pointer; }
 
-.titulo,
-.som {
+.topo-esq, .topo-dir, .acoes-dir, .info {
   position: fixed;
   z-index: 2;
   font-size: 12px;
-  font-weight: normal;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-.titulo { top: 28px; left: 32px; }
+.topo-esq { top: 28px; left: 32px; }
+.titulo   { font-size: 12px; font-weight: normal; }
+.contador { color: #777; margin-top: 8px; }
 
-.som {
-  top: 28px;
-  right: 32px;
+.topo-dir  { top: 28px; right: 32px; display: flex; gap: 28px; }
+.acoes-dir { bottom: 28px; right: 32px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+
+.link {
   background: none;
   border: none;
   color: #fff;
   font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
   cursor: pointer;
   opacity: 0.6;
   transition: opacity 0.3s;
 }
-.som:hover,
-.som.ligado { opacity: 1; }
+.link:hover, .link.ligado { opacity: 1; }
 
 .info {
-  position: fixed;
-  z-index: 2;
   bottom: 28px;
   left: 32px;
-  max-width: calc(100% - 320px);
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  max-width: calc(100% - 340px);
   line-height: 1.8;
 }
-.info p {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.info p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .descricao, .rua { transition: opacity 0.5s; }
 .descricao { color: #fff; }
 .rua       { color: #bbb; }
 .agora     { color: #777; }
-
-.adicionar {
-  position: fixed;
-  z-index: 2;
-  bottom: 28px;
-  right: 32px;
-  background: none;
-  border: none;
-  color: #fff;
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.3s;
-}
-.adicionar:hover { opacity: 1; }
 
 .painel {
   position: fixed;
@@ -91,7 +71,7 @@ html, body {
   max-height: calc(100% - 100px);
   overflow-y: auto;
   padding: 22px;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.92);
   border: 1px solid #444;
   font-size: 11px;
   letter-spacing: 0.15em;
@@ -100,10 +80,16 @@ html, body {
   gap: 10px;
 }
 .painel[hidden] { display: none; }
+.painel-about { top: 70px; bottom: auto; width: 420px; max-height: calc(100% - 190px); }
 
 .painel-titulo { color: #fff; margin-bottom: 6px; }
 .etiqueta      { color: #fff; margin-top: 10px; }
 .valor         { color: #777; word-break: break-all; }
+.texto         { color: #aaa; line-height: 1.7; letter-spacing: 0.08em; }
+
+.legenda { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.legenda li { color: #aaa; line-height: 1.6; letter-spacing: 0.08em; display: flex; gap: 10px; }
+.simbolo { color: #f0a03c; width: 14px; flex-shrink: 0; text-align: center; }
 
 .botao-linha {
   align-self: flex-start;
@@ -142,19 +128,16 @@ html, body {
 .linha-procura { display: flex; gap: 10px; align-items: flex-end; }
 .linha-procura .campo { flex: 1; min-width: 0; }
 
-.creditos { color: #444; font-size: 9px; letter-spacing: 0.12em; }
+.creditos { color: #555; font-size: 9px; letter-spacing: 0.12em; line-height: 1.6; }
 
-.acoes {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-}
+.acoes { display: flex; justify-content: space-between; margin-top: 8px; }
 
 @media (max-width: 600px) {
-  .titulo, .som, .info, .adicionar { font-size: 11px; }
-  .titulo    { top: 20px; left: 20px; }
-  .som       { top: 20px; right: 20px; }
+  .topo-esq, .topo-dir, .acoes-dir, .info { font-size: 11px; }
+  .topo-esq  { top: 20px; left: 20px; }
+  .topo-dir  { top: 20px; right: 20px; flex-direction: column; align-items: flex-end; gap: 8px; }
   .info      { bottom: 20px; left: 20px; max-width: calc(100% - 40px); }
-  .adicionar { top: 46px; bottom: auto; right: 20px; }
+  .acoes-dir { top: 84px; bottom: auto; right: 20px; }
   .painel    { bottom: 20px; right: 20px; }
+  .painel-about { top: 20px; max-height: calc(100% - 40px); }
 }
