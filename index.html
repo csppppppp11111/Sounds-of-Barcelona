@@ -14,8 +14,11 @@
 
   <canvas id="tela"></canvas>
 
-  <p class="rua" id="rua"></p>
-  <p class="agora" id="agora"></p>
+  <div class="info">
+    <p class="descricao" id="descricao"></p>
+    <p class="rua" id="rua"></p>
+    <p class="agora" id="agora"></p>
+  </div>
 
   <button class="adicionar" id="botaoAdicionar">+ ADD YOUR SOUND</button>
 
@@ -29,16 +32,22 @@
     </label>
     <span class="valor" id="nomeFicheiro">NO FILE CHOSEN</span>
 
-    <p class="etiqueta">2 · WHERE DID YOU RECORD IT?</p>
-    <span class="valor">WRITE THE STREET:</span>
+    <p class="etiqueta">2 · WHERE IN BARCELONA?</p>
     <div class="linha-procura">
       <input class="campo" id="campoLocal" type="text"
              placeholder="CARRER DE MALLORCA 401" autocomplete="off" spellcheck="false">
       <button class="botao-linha" id="botaoProcurar" type="button">FIND</button>
     </div>
     <button class="botao-linha" id="botaoGPS" type="button">OR USE MY LOCATION</button>
-
     <p class="mensagem" id="mensagem"></p>
+
+    <p class="etiqueta">3 · WHEN?</p>
+    <input class="campo" id="campoData" type="date">
+
+    <p class="etiqueta">4 · WHAT CAN WE HEAR?</p>
+    <input class="campo" id="campoDescricao" type="text" maxlength="80"
+           placeholder="FISH SELLERS AT LA BOQUERIA" autocomplete="off">
+
     <p class="creditos">STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS</p>
 
     <div class="acoes">
