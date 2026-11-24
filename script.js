@@ -1,11 +1,17 @@
-/* SOUNDS OF BARCELONA — script.js
-   Arquivo coletivo dos sons de Barcelona. Cada som deixa uma marca
-   permanente na esfera, no sítio que corresponde ao lugar da cidade. */
+/* =====================================================================
+   SOUNDS OF BARCELONA — script.js
+   Um arquivo coletivo dos sons de Barcelona.
+   O topo e os lados da esfera são Barcelona, com o relevo real.
+   Cada som deixa uma marca redonda no sítio onde foi gravado;
+   quando toca, a zona dele ondula com o som.
+   ===================================================================== */
 
-/* 1. LISTA DE SONS — vazia: os sons vêm do Supabase */
+
+/* 1. LISTA DE SONS — fica vazia: os sons vêm do Supabase */
 const SONS = [];
 
-/* 1b. SUPABASE (endereço e chave no config.js) */
+
+/* 1b. SUPABASE (o endereço e a chave estão no config.js) */
 let db = null;
 try {
   const url = window.SUPABASE_URL, chave = window.SUPABASE_CHAVE;
@@ -17,21 +23,32 @@ try {
   db = null;
 }
 
-/* 2. PARÂMETROS */
+
+/* 2. PARÂMETROS (podes mexer nestes números) */
 const PARAM = {
-  pontos: window.innerWidth < 700 ? 5000 : 10000,
-  tamanho: 0.26,
-  rotacao: 0.10,
-  forcaDobras: 0.12,
-  forcaEspetro: 0.08,
-  forcaMarcas: 1.0,
-  corCentro: 262,
-  corBorda: 28,
-  forcaCor: 40,
-  tamanhoPonto: 1.0,
+  pontosCidade: window.innerWidth < 700 ? 7000 : 12000, // pontos da cidade (topo e lados)
+  pontosEsfera: window.innerWidth < 700 ? 1200 : 2000,  // pontos da parte de baixo
+  tamanho: 0.30,        // raio da esfera em relação ao lado menor do ecrã
+  exagero: 0.10,        // altura do relevo da cidade (0,10 = 512 m do Tibidabo)
+  forcaMarcas: 1.0,     // altura das marcas dos sons
+  ondaZona: 0.05,       // quanto ondula a zona do som que toca
+  oscilacao: 0.45,      // quanto a esfera roda para os lados
+  corCentro: 262,       // violeta (cidade baixa)
+  corBorda: 28,         // laranja dourado (marcas dos sons)
 };
 
+// Barcelona: limites aproximados (para validar moradas)
 const BARCELONA = { latMin: 41.317, latMax: 41.469, lonMin: 2.052, lonMax: 2.229 };
+
+// Barcelona cobre o topo e os lados da esfera: o centro da cidade fica
+// no topo e os bairros mais afastados descem pelos lados.
+// CAP = até onde desce a cidade (1 = só o topo, 0 = até ao meio, -1 = tudo).
+const CAP = -0.25;
+const CENTRO = { lat: 41.402, lon: 2.142 };
+const RAIO_KM = 9.0;
+const RLAT = RAIO_KM / 111.0;
+const RLON = RAIO_KM / (111.0 * Math.cos((CENTRO.lat * Math.PI) / 180));
+
 
 /* 3. TELA */
 const tela = document.getElementById("tela");
@@ -49,139 +66,188 @@ function ajustarTela() {
 window.addEventListener("resize", ajustarTela);
 ajustarTela();
 
-/* 4. PONTOS DA ESFERA */
-const pontos = [];
-const LINHAS = Math.round(Math.sqrt(PARAM.pontos / 1.27));
 
-for (let l = 0; l < LINHAS; l++) {
-  const lat = Math.PI * ((l + 0.5) / LINHAS - 0.5);
-  const y = Math.sin(lat);
-  const raio = Math.cos(lat);
-  const naLinha = Math.max(6, Math.round(LINHAS * 2 * raio));
-  for (let k = 0; k < naLinha; k++) {
-    const angulo = (k / naLinha) * Math.PI * 2;
-    const x = Math.cos(angulo) * raio;
-    const z = Math.sin(angulo) * raio;
-    const latitude = (1 - y) / 2;
-    const mistura = (Math.sin(angulo * 3) + 1) * 0.08;
-    const faixa = Math.min(0.99, Math.abs(1 - latitude - mistura));
-    pontos.push({ x, y, z, angulo, faixa });
-  }
+/* 4. A ESFERA: Barcelona no topo e nos lados */
+function discoParaGeo(X, Y) { return { lat: CENTRO.lat + Y * RLAT, lon: CENTRO.lon + X * RLON }; }
+function geoParaDisco(lat, lon) { return { X: (lon - CENTRO.lon) / RLON, Y: (lat - CENTRO.lat) / RLAT }; }
+
+function discoParaEsfera(X, Y) {
+  const s = Math.min(1, Math.hypot(X, Y)), a = Math.atan2(Y, X);
+  const y = 1 - s * s * (1 - CAP), r = Math.sqrt(Math.max(0, 1 - y * y));
+  return { x: r * Math.cos(a), y, z: r * Math.sin(a) };
+}
+function esferaParaDisco(x, y, z) {
+  const s = Math.sqrt(Math.max(0, (1 - y) / (1 - CAP))), a = Math.atan2(z, x);
+  return { X: s * Math.cos(a), Y: s * Math.sin(a), s };
+}
+
+const pontos = [];
+const ouro = Math.PI * (3 - Math.sqrt(5));
+for (let i = 0; i < PARAM.pontosCidade; i++) {
+  const y = 1 - ((i + 0.5) / PARAM.pontosCidade) * (1 - CAP);
+  const r = Math.sqrt(1 - y * y), th = ouro * i;
+  const x = r * Math.cos(th), z = r * Math.sin(th);
+  const d = esferaParaDisco(x, y, z);
+  pontos.push({ x, y, z, cidade: true, X: d.X, Y: d.Y, s: d.s });
+}
+for (let i = 0; i < PARAM.pontosEsfera; i++) {
+  const y = CAP - ((i + 0.5) / PARAM.pontosEsfera) * (1 + CAP);
+  const r = Math.sqrt(1 - y * y), th = ouro * i;
+  pontos.push({ x: r * Math.cos(th), y, z: r * Math.sin(th), cidade: false, X: 0, Y: 0, s: 2 });
 }
 
 const N = pontos.length;
-const ecraX = new Float32Array(N), ecraY = new Float32Array(N);
-const tamanhos = new Float32Array(N), alfas = new Float32Array(N);
-const matizes = new Uint16Array(N), profundidade = new Float32Array(N);
-
+const terreno   = new Float32Array(N);
+const ehMar     = new Uint8Array(N);
 const marcaBase = new Float32Array(N);
-const destaque  = new Float32Array(N);
-let maiorMarca = 0;
+const zona      = new Float32Array(N);
+const distZona  = new Float32Array(N);
+const ecraX = new Float32Array(N), ecraY = new Float32Array(N), profundidade = new Float32Array(N);
+let relevoCarregado = false;
 
-/* 5. FORMA AO VIVO */
-function ruido(x, y, z, t) {
-  return (
-    Math.sin(x * 2.1 + t * 0.9) * Math.sin(y * 2.7 - t * 0.7) * Math.sin(z * 2.3 + t * 0.5) +
-    0.5  * Math.sin(x * 4.3 - y * 3.1 + t * 1.3) * Math.sin(z * 3.7 + t * 0.8) +
-    0.25 * Math.sin((x + z) * 6.1 + t * 1.7) * Math.sin(y * 5.3 - t * 1.1)
-  ) / 1.75;
+function bordaSuave(s) { const t = Math.min(1, Math.max(0, (1 - s) / 0.1)); return t * t * (3 - 2 * t); }
+
+
+/* 5. O RELEVO REAL DE BARCELONA
+   Terrain Tiles (AWS / Mapzen): a cor de cada pixel guarda a altura.
+   Altura (m) = (vermelho * 256 + verde + azul / 256) - 32768. O mar tem altura 0 ou negativa. */
+const TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
+const ZOOM = 12;
+let alturaEm = () => 0;
+
+function lonParaTile(lon) { return ((lon + 180) / 360) * 2 ** ZOOM; }
+function latParaTile(lat) {
+  const r = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** ZOOM;
+}
+function carregarImagem(url) {
+  return new Promise((ok, falha) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => ok(img);
+    img.onerror = falha;
+    img.src = url;
+  });
 }
 
-const F = { base: 0.04, dobras: 0.04, nDobras: 8, torcao: 0.02, t: 0 };
-
-function forma(x, y, z, angulo) {
-  const equador = 1 - y * y;
-  const t = F.t;
-  const organico = ruido(x, y, z, t * 0.6);
-  const dobras = Math.sin(y * F.nDobras + Math.sin(angulo * 3 + t * 0.7) * 1.8 + t * 1.3);
-  const torcao = Math.sin(angulo * 2 + y * 4 - t * 0.6);
-  return organico * F.base + dobras * F.dobras * equador + torcao * F.torcao * equador;
-}
-
-/* 6. MARCAS PERMANENTES
-   Barcelona "enrolada" na esfera: oeste->este = à volta; sul->norte = de baixo para cima.
-   g = graves (lomba larga), m = médios (ondas), a = agudos (picos),
-   v = volume (tamanho), p = sons súbitos (picos mais altos) */
-function centroNaEsfera(lat, lon) {
-  const u = Math.min(1, Math.max(0, (lon - BARCELONA.lonMin) / (BARCELONA.lonMax - BARCELONA.lonMin)));
-  const v = Math.min(1, Math.max(0, (lat - BARCELONA.latMin) / (BARCELONA.latMax - BARCELONA.latMin)));
-  const azimute = u * Math.PI * 2;
-  const latitude = (v - 0.5) * Math.PI * 0.8;
-  return {
-    x: Math.cos(latitude) * Math.cos(azimute),
-    y: Math.sin(latitude),
-    z: Math.cos(latitude) * Math.sin(azimute),
+async function carregarRelevo() {
+  const x0 = Math.floor(lonParaTile(CENTRO.lon - RLON)), x1 = Math.floor(lonParaTile(CENTRO.lon + RLON));
+  const y0 = Math.floor(latParaTile(CENTRO.lat + RLAT)), y1 = Math.floor(latParaTile(CENTRO.lat - RLAT));
+  const c = document.createElement("canvas");
+  c.width = (x1 - x0 + 1) * 256; c.height = (y1 - y0 + 1) * 256;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  const pedidos = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+    pedidos.push(carregarImagem(TILES + ZOOM + "/" + x + "/" + y + ".png")
+      .then((img) => g.drawImage(img, (x - x0) * 256, (y - y0) * 256)));
+  }
+  await Promise.all(pedidos);
+  const dados = g.getImageData(0, 0, c.width, c.height).data;
+  alturaEm = (lat, lon) => {
+    const px = Math.floor((lonParaTile(lon) - x0) * 256), py = Math.floor((latParaTile(lat) - y0) * 256);
+    if (px < 0 || py < 0 || px >= c.width || py >= c.height) return 0;
+    const i = (py * c.width + px) * 4;
+    return dados[i] * 256 + dados[i + 1] + dados[i + 2] / 256 - 32768;
   };
+  for (let i = 0; i < N; i++) {
+    const p = pontos[i];
+    if (!p.cidade) continue;
+    const geo = discoParaGeo(p.X, p.Y);
+    const h = alturaEm(geo.lat, geo.lon);
+    ehMar[i] = h <= 0.5 ? 1 : 0;
+    terreno[i] = Math.max(0, h);
+  }
+  relevoCarregado = true;
+  recalcularMarcas();
+}
+carregarRelevo().catch((e) => console.warn("Relevo não carregou (a cidade fica lisa):", e));
+
+function terrenoNoDisco(X, Y) {
+  if (!relevoCarregado) return 0;
+  const geo = discoParaGeo(X, Y);
+  return (Math.max(0, alturaEm(geo.lat, geo.lon)) / 512) * PARAM.exagero;
 }
 
+
+/* 6. AS MARCAS DOS SONS (redondas)
+   g = graves -> marca mais larga · v = volume -> mais alta · a = agudos -> lombas à volta */
 function prepararMarca(som) {
   const s = som.assinatura;
-  const c = centroNaEsfera(som.lat, som.lon);
-  let t1 = { x: -c.z, y: 0, z: c.x };
-  const n1 = Math.hypot(t1.x, t1.z) || 1;
-  t1 = { x: t1.x / n1, y: 0, z: t1.z / n1 };
-  const t2 = { x: c.y * t1.z, y: c.z * t1.x - c.x * t1.z, z: -c.y * t1.x };
-  return {
-    c, t1, t2,
-    largura: 0.28 + 0.32 * s.g,
-    lomba:   (0.10 + 0.32 * s.v) * (0.45 + 0.55 * s.g),
-    ondas:   0.07 * s.m,
-    nOndas:  12 + 14 * s.m,
-    picos:   (0.15 + 0.55 * s.a) * (0.6 + 0.8 * s.p) * (0.5 + 0.5 * s.v),
-    nPicos:  Math.round(4 + 6 * s.a),
-    nAnel:   7 + 9 * s.a,
-  };
+  const c = geoParaDisco(som.lat, som.lon);
+  const L = 0.06 + 0.07 * s.g;
+  const altura = 0.035 + 0.09 * s.v;
+  const satelites = [];
+  const n = Math.round(s.a * 6);
+  for (let k = 0; k < n; k++) {
+    const ang = (k / n) * Math.PI * 2 + s.m * 3;
+    satelites.push({ X: c.X + Math.cos(ang) * L * 1.7, Y: c.Y + Math.sin(ang) * L * 1.7 });
+  }
+  return { X: c.X, Y: c.Y, L, altura, satelites };
 }
 
-function relevoDaMarca(M, px, py, pz) {
-  const dot = Math.max(-1, Math.min(1, px * M.c.x + py * M.c.y + pz * M.c.z));
-  const dist = Math.acos(dot);
-  if (dist > M.largura * 2.6) return 0;
-  const env  = Math.exp(-((dist / M.largura) ** 2));
-  const env2 = Math.exp(-((dist / (M.largura * 1.3)) ** 2));
-  const ang = Math.atan2(px * M.t2.x + py * M.t2.y + pz * M.t2.z,
-                         px * M.t1.x + py * M.t1.y + pz * M.t1.z);
-  const estrela = Math.pow(0.5 + 0.5 * Math.cos(ang * M.nPicos), 4) *
-                  Math.pow(0.5 + 0.5 * Math.cos(dist * M.nAnel), 2);
-  return env * M.lomba +
-         env * M.ondas * Math.sin(dist * M.nOndas) +
-         env2 * M.picos * estrela;
+function relevoDaMarca(M, X, Y) {
+  const d = Math.hypot(X - M.X, Y - M.Y);
+  if (d > M.L * 4) return 0;
+  let r = M.altura * Math.exp(-((d / M.L) ** 2));
+  const l2 = M.L * 0.45;
+  for (const sat of M.satelites) {
+    const ds = Math.hypot(X - sat.X, Y - sat.Y);
+    r += M.altura * 0.45 * Math.exp(-((ds / l2) ** 2));
+  }
+  return r;
+}
+
+function marcasNoDisco(X, Y) {
+  let r = 0;
+  for (const M of marcas) if (M) r += relevoDaMarca(M, X, Y);
+  return 0.28 * Math.tanh((r * PARAM.forcaMarcas) / 0.28);
 }
 
 const marcas = [];
+const alturaCentro = [];
 
 function recalcularMarcas() {
-  marcaBase.fill(0);
-  for (const M of marcas) {
-    if (!M) continue;
-    for (let i = 0; i < N; i++) {
-      const p = pontos[i];
-      marcaBase[i] += relevoDaMarca(M, p.x, p.y, p.z);
-    }
-  }
-  maiorMarca = 0;
   for (let i = 0; i < N; i++) {
-    marcaBase[i] = 0.7 * Math.tanh((marcaBase[i] * PARAM.forcaMarcas) / 0.7);
-    if (marcaBase[i] > maiorMarca) maiorMarca = marcaBase[i];
+    const p = pontos[i];
+    marcaBase[i] = p.cidade ? marcasNoDisco(p.X, p.Y) * bordaSuave(p.s) : 0;
   }
+  for (let k = 0; k < marcas.length; k++) {
+    const M = marcas[k];
+    alturaCentro[k] = M ? terrenoNoDisco(M.X, M.Y) + marcasNoDisco(M.X, M.Y) : 0;
+  }
+  alturaCentro.length = marcas.length;
+  if (SONS.length) marcarDestaque(faixaAtual);
 }
 
 function marcarDestaque(indice) {
-  destaque.fill(0);
+  zona.fill(0);
   const M = marcas[indice];
   if (!M) return;
+  const RZ = 0.16;
   for (let i = 0; i < N; i++) {
     const p = pontos[i];
-    destaque[i] = Math.max(0, relevoDaMarca(M, p.x, p.y, p.z));
+    if (!p.cidade) continue;
+    const d = Math.hypot(p.X - M.X, p.Y - M.Y);
+    distZona[i] = d;
+    zona[i] = Math.exp(-((d / RZ) ** 2));
   }
 }
 
 function adicionarMarca(som, indice) {
   marcas.splice(indice, 0, som.assinatura ? prepararMarca(som) : null);
   recalcularMarcas();
+  atualizarContador();
 }
 
-/* 7. IMPRESSÃO DIGITAL DO SOM (analisa a gravação inteira uma vez) */
+function atualizarContador() {
+  const n = SONS.length;
+  document.getElementById("contador").textContent =
+    n === 0 ? "AN ARCHIVE OF THE CITY'S SOUNDS"
+            : n + (n === 1 ? " SOUND" : " SOUNDS") + " IN THE ARCHIVE";
+}
+
+
+/* 7. IMPRESSÃO DIGITAL DO SOM */
 function fft(re, im) {
   const n = re.length;
   for (let i = 1, j = 0; i < n; i++) {
@@ -254,9 +320,6 @@ async function analisarSom(fonte) {
   };
 }
 
-/* 8. CORES */
-const paleta = [];
-for (let h = 0; h < 360; h++) paleta.push(`hsl(${h}, 100%, 62%)`);
 
 /* 9. TOCAR OS SONS */
 const botaoSom   = document.getElementById("botaoSom");
@@ -335,17 +398,36 @@ botaoSom.addEventListener("click", (e) => {
   somLigado ? desligarSom() : ligarSom();
 });
 
-function primeiraInteracao(e) {
-  const t = e.target;
-  if (t.closest && t.closest("#painel, #botaoAdicionar")) return;
-  if (t !== botaoSom && !somLigado) ligarSom();
-  window.removeEventListener("pointerdown", primeiraInteracao);
-  window.removeEventListener("keydown", primeiraInteracao);
+// Clicar numa marca toca esse som; clicar noutro sítio liga o som
+function marcaPerto(x, y) {
+  let melhor = -1, melhorDist = 22;
+  for (let i = 0; i < centrosEcra.length; i++) {
+    const c = centrosEcra[i];
+    if (!c || !c.visivel) continue;
+    const d = Math.hypot(c.x - x, c.y - y);
+    if (d < melhorDist) { melhorDist = d; melhor = i; }
+  }
+  return melhor;
 }
-window.addEventListener("pointerdown", primeiraInteracao);
-window.addEventListener("keydown", primeiraInteracao);
 
-/* 10. CANTO INFERIOR ESQUERDO */
+tela.addEventListener("click", (e) => {
+  const i = marcaPerto(e.clientX, e.clientY);
+  if (i >= 0) {
+    prepararAudio();
+    if (!somLigado) { somLigado = true; contextoAudio.resume(); volumeSuave(1);
+      botaoSom.textContent = "\u25CF SOUND ON"; botaoSom.classList.add("ligado"); }
+    falhasSeguidas = 0;
+    tocarFaixa(i);
+  } else if (!somLigado) {
+    ligarSom();
+  }
+});
+tela.addEventListener("mousemove", (e) => {
+  tela.classList.toggle("sobre-marca", marcaPerto(e.clientX, e.clientY) >= 0);
+});
+
+
+/* 10. CANTO INFERIOR ESQUERDO: descrição, rua · dia, coordenadas */
 const coord = { lat: 0, lon: 0, alvoLat: 0, alvoLon: 0, ativa: false };
 
 function formatarData(iso) {
@@ -394,7 +476,8 @@ function semSons() {
 }
 semSons();
 
-/* 11. CARREGAR O ARQUIVO DO SUPABASE */
+
+/* 11. CARREGAR O ARQUIVO (todos os sons guardados no Supabase) */
 async function carregarSonsGuardados() {
   if (!db) return;
   const { data, error } = await db
@@ -419,6 +502,7 @@ async function carregarSonsGuardados() {
     if (!som.assinatura) semAssinatura.push(som);
   }
   recalcularMarcas();
+  atualizarContador();
 
   if (estavaVazio && SONS.length) {
     falhasSeguidas = 0;
@@ -436,7 +520,8 @@ async function carregarSonsGuardados() {
 }
 carregarSonsGuardados();
 
-/* 12. ADICIONAR UM SOM */
+
+/* 12. ADICIONAR UM SOM (gravação, sítio, dia, descrição) */
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 const TAMANHO_MAXIMO_MB = 30;
 
@@ -511,6 +596,8 @@ function hojeISO() {
 }
 
 function abrirPainel() {
+  document.getElementById("painelAbout").hidden = true;
+  document.getElementById("painelObjeto").hidden = true;
   painel.hidden = false;
   botaoAdicionar.hidden = true;
   campoData.max = hojeISO();
@@ -708,6 +795,113 @@ botaoConfirmar.addEventListener("click", async () => {
   tocarFaixa(posicao);
 });
 
+
+/* 12b. PAINÉIS ABOUT E GENERATE OBJECT (só um painel aberto de cada vez) */
+const painelAbout  = document.getElementById("painelAbout");
+const painelObjeto = document.getElementById("painelObjeto");
+const mensagemObjeto = document.getElementById("mensagemObjeto");
+
+function abrirSo(qual) {
+  for (const p of [painel, painelAbout, painelObjeto]) if (p !== qual) p.hidden = true;
+  botaoAdicionar.hidden = false;
+  qual.hidden = false;
+}
+document.getElementById("botaoAbout").addEventListener("click", () => abrirSo(painelAbout));
+document.getElementById("fecharAbout").addEventListener("click", () => { painelAbout.hidden = true; });
+document.getElementById("botaoObjeto").addEventListener("click", () => {
+  mensagemObjeto.textContent = "";
+  mensagemObjeto.className = "mensagem";
+  abrirSo(painelObjeto);
+});
+document.getElementById("fecharObjeto").addEventListener("click", () => { painelObjeto.hidden = true; });
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { painelAbout.hidden = true; painelObjeto.hidden = true; }
+});
+
+
+/* 12c. GENERATE OBJECT — esfera com base plana e as marcas dos sons (sem a cidade) */
+const OBJETO = {
+  linhas: 180,          // detalhe de cima a baixo
+  colunas: 360,         // detalhe à volta
+  corteBase: -0.62,     // altura do corte da base (-1 = fundo da esfera)
+  forcaMarcas: 1.6,     // as marcas um pouco mais altas no objeto
+};
+
+function raioObjeto(x, y, z) {
+  if (y <= CAP) return 1;
+  const d = esferaParaDisco(x, y, z);
+  return 1 + OBJETO.forcaMarcas * marcasNoDisco(d.X, d.Y) * bordaSuave(d.s);
+}
+
+function gerarSTL(diametroMm) {
+  const NL = OBJETO.linhas, NC = OBJETO.colunas;
+  const v = [];
+  const ponto = (lat, lon) => {
+    const x = Math.cos(lat) * Math.cos(lon), y = Math.sin(lat), z = Math.cos(lat) * Math.sin(lon);
+    const d = raioObjeto(x, y, z);
+    return [x * d, Math.max(y * d, OBJETO.corteBase), z * d];
+  };
+  const sul = v.length; v.push(ponto(-Math.PI / 2, 0));
+  for (let l = 1; l < NL; l++) {
+    const lat = -Math.PI / 2 + (Math.PI * l) / NL;
+    for (let c = 0; c < NC; c++) v.push(ponto(lat, (2 * Math.PI * c) / NC));
+  }
+  const norte = v.length; v.push(ponto(Math.PI / 2, 0));
+  const idx = (l, c) => 1 + (l - 1) * NC + (c % NC);
+
+  const tri = [];
+  for (let c = 0; c < NC; c++) tri.push([sul, idx(1, c), idx(1, c + 1)]);
+  for (let l = 1; l < NL - 1; l++) {
+    for (let c = 0; c < NC; c++) {
+      const a = idx(l, c), b = idx(l, c + 1), cc = idx(l + 1, c + 1), d = idx(l + 1, c);
+      tri.push([a, cc, b]); tri.push([a, d, cc]);
+    }
+  }
+  for (let c = 0; c < NC; c++) tri.push([norte, idx(NL - 1, c + 1), idx(NL - 1, c)]);
+
+  let maxH = 0, minY = Infinity;
+  for (const p of v) { maxH = Math.max(maxH, Math.hypot(p[0], p[2])); minY = Math.min(minY, p[1]); }
+  const k = diametroMm / 2 / maxH;
+  const final = v.map((p) => [p[0] * k, -p[2] * k, (p[1] - minY) * k]);
+
+  const buffer = new ArrayBuffer(84 + tri.length * 50);
+  const dv = new DataView(buffer);
+  const cabecalho = "SOUNDS OF BARCELONA - " + SONS.length + " sounds - " + hojeISO();
+  for (let i = 0; i < 80; i++) dv.setUint8(i, i < cabecalho.length ? cabecalho.charCodeAt(i) & 127 : 32);
+  dv.setUint32(80, tri.length, true);
+  let o = 84;
+  for (const [ia, ib, ic] of tri) {
+    const A = final[ia], B = final[ib], C = final[ic];
+    const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2];
+    const wx = C[0] - A[0], wy = C[1] - A[1], wz = C[2] - A[2];
+    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+    const nn = Math.hypot(nx, ny, nz) || 1;
+    for (const val of [nx / nn, ny / nn, nz / nn, ...A, ...B, ...C]) { dv.setFloat32(o, val, true); o += 4; }
+    dv.setUint16(o, 0, true); o += 2;
+  }
+  let maxZ = 0;
+  for (const p of final) if (p[2] > maxZ) maxZ = p[2];
+  return { blob: new Blob([buffer], { type: "model/stl" }), alturaMm: Math.round(maxZ * 10) / 10 };
+}
+
+function descarregarObjeto(diametroMm) {
+  mensagemObjeto.className = "mensagem";
+  mensagemObjeto.textContent = "BUILDING\u2026";
+  setTimeout(() => {
+    const r = gerarSTL(diametroMm);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(r.blob);
+    a.download = "sounds-of-barcelona_" + hojeISO() + "_" + SONS.length + "-sounds_" + diametroMm + "mm.stl";
+    document.body.appendChild(a); a.click(); a.remove();
+    mensagemObjeto.className = "mensagem ok";
+    mensagemObjeto.textContent = "\u2713 " + SONS.length + " SOUNDS \u00B7 " + diametroMm / 10 +
+      " CM MAX \u00B7 " + (r.alturaMm / 10).toFixed(1) + " CM HIGH";
+  }, 50);
+}
+document.getElementById("objeto60").addEventListener("click", () => descarregarObjeto(60));
+document.getElementById("objeto120").addEventListener("click", () => descarregarObjeto(120));
+
+
 /* 13. LER O SOM AO VIVO */
 const somVivo = { graves: 0, medios: 0, agudos: 0, volume: 0, brilho: 0.5 };
 
@@ -735,92 +929,113 @@ function lerSom(t) {
   somVivo.brilho += (Math.min(b, 1) - somVivo.brilho) * 0.05;
 }
 
+
 /* 14. DESENHAR A ESFERA */
-const DISTANCIA = 3.2;
-const LUZ = (() => { const l = [-0.45, 0.55, 0.7]; const n = Math.hypot(...l); return l.map((v) => v / n); })();
+const DISTANCIA = 3.4;
+const paleta = [];
+for (let h = 0; h < 360; h++) paleta.push(`hsl(${h}, 100%, 60%)`);
+const centrosEcra = [];
 
 function desenhar(tempoMs) {
   const t = tempoMs / 1000;
   lerSom(t);
   atualizarCoordenadas();
 
-  F.t = t;
-  F.base   += ((0.02 + somVivo.volume * 0.06) - F.base) * 0.1;
-  F.dobras += ((0.02 + somVivo.graves * PARAM.forcaDobras) - F.dobras) * 0.1;
-  F.torcao += ((0.01 + somVivo.agudos * 0.10) - F.torcao) * 0.1;
-  F.nDobras += ((8 + somVivo.medios * 10) - F.nDobras) * 0.02;
-
-  const desvioCor = (somVivo.brilho - 0.5) * PARAM.forcaCor + Math.sin(t * 0.07) * 12;
-  const invasao = somVivo.volume * 0.2;
-  let distCor = PARAM.corBorda - PARAM.corCentro;
-  if (distCor < 0) distCor += 360;
-  const pulso = audio.paused ? 0 : somVivo.volume * 2.2 + 0.25 * (0.5 + 0.5 * Math.sin(t * 3));
-
   ctx.globalAlpha = 1;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, largura, altura);
 
-  const cx = largura / 2, cy = altura / 2;
-  const escala = Math.min(largura, altura) * PARAM.tamanho / (1 + maiorMarca * 0.6) *
-                 (1 + somVivo.graves * 0.05);
+  const aTocar = !audio.paused && SONS.length > 0;
+  const vol = aTocar ? somVivo.volume : 0;
+  const cx = largura / 2, cy = altura * 0.52;
+  const escala = Math.min(largura, altura) * PARAM.tamanho * (1 + somVivo.graves * 0.02);
 
-  const rotY = t * PARAM.rotacao;
-  const rotX = 0.3 + Math.sin(t * 0.1) * 0.2;
-  const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-  const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
-  const comEspetro = espetro && !audio.paused;
-  const e = 0.03;
+  const ry = 2.36 + Math.sin(t * 0.07) * PARAM.oscilacao;
+  const rx = 0.88 + Math.sin(t * 0.05) * 0.08;
+  const cY = Math.cos(ry), sY = Math.sin(ry), cX = Math.cos(rx), sX = Math.sin(rx);
+  const amp = PARAM.ondaZona * (0.15 + vol * 1.8);
+  let distCor = PARAM.corBorda - PARAM.corCentro; if (distCor < 0) distCor += 360;
 
   for (let i = 0; i < N; i++) {
     const p = pontos[i];
-
-    const vivo = forma(p.x, p.y, p.z, p.angulo);
-    let desloc = marcaBase[i] + destaque[i] * pulso * 0.5 + vivo;
-    if (comEspetro) desloc += (espetro[1 + Math.floor(p.faixa * 159)] / 255) * PARAM.forcaEspetro;
-    const d = 1 + desloc;
-
-    const inclinacao = (forma(p.x, p.y + e, p.z, p.angulo) - vivo) / e;
-
+    let d = 1;
+    if (p.cidade) {
+      const borda = bordaSuave(p.s);
+      d += (terreno[i] / 512) * PARAM.exagero * borda + marcaBase[i];
+      if (zona[i] > 0.01) d += zona[i] * amp * Math.sin(distZona[i] * 70 - t * 5) * borda;
+    }
     const x = p.x * d, y = p.y * d, z = p.z * d;
-    const x1 = x * cosY - z * sinY;
-    const z1 = x * sinY + z * cosY;
-    const y2 = y * cosX - z1 * sinX;
-    const z2 = y * sinX + z1 * cosX;
-
-    const nx = p.x * cosY - p.z * sinY;
-    const nz1 = p.x * sinY + p.z * cosY;
-    const ny = p.y * cosX - nz1 * sinX;
-    const nz = p.y * sinX + nz1 * cosX;
-    const difusa = Math.max(0, nx * LUZ[0] + ny * LUZ[1] + nz * LUZ[2]);
-    let luz = (0.55 + 0.6 * difusa) * (1 - inclinacao * 0.25);
-    luz = Math.max(0.3, Math.min(1.25, luz));
-
+    const x1 = x * cY - z * sY, z1 = x * sY + z * cY;
+    const y2 = y * cX - z1 * sX, z2 = y * sX + z1 * cX;
     const persp = DISTANCIA / (DISTANCIA - z2);
     ecraX[i] = cx + x1 * escala * persp;
     ecraY[i] = cy - y2 * escala * persp;
     profundidade[i] = z2;
-
-    const brilhoMarca = 1 + destaque[i] * pulso * 2;
-    const frente = Math.max(0, (z2 + 1.2) / 2.4);
-    alfas[i] = Math.min(1, luz * (0.1 + 0.9 * frente * frente) * (1 + somVivo.volume * 0.4) * brilhoMarca);
-    tamanhos[i] = (0.6 + frente * 1.7) * persp * PARAM.tamanhoPonto * (1 + destaque[i] * pulso);
-
-    let borda = 1 - Math.abs(nz);
-    borda = Math.pow(Math.min(1, borda * 1.45), 1.1) + desloc * 1.8 + invasao;
-    borda = Math.max(0, Math.min(1, borda));
-    const matiz = PARAM.corCentro + borda * distCor + desvioCor;
-    matizes[i] = ((Math.round(matiz) % 360) + 360) % 360;
   }
 
   for (let passo = 0; passo < 2; passo++) {
     for (let i = 0; i < N; i++) {
-      if ((profundidade[i] >= 0) !== (passo === 1)) continue;
-      ctx.fillStyle = paleta[matizes[i]];
-      ctx.globalAlpha = alfas[i];
+      const z2 = profundidade[i];
+      if ((z2 >= 0) !== (passo === 1)) continue;
+      const p = pontos[i];
+      const frente = Math.max(0, (z2 + 1.1) / 2.2);
+      let cor, alfa, tam;
+      if (!p.cidade) {
+        cor = PARAM.corCentro; alfa = 0.06 + 0.30 * frente * frente; tam = 0.5 + frente * 0.8;
+      } else if (ehMar[i]) {
+        cor = 232; alfa = 0.10 + 0.40 * frente * frente; tam = 0.5 + frente * 0.9;
+      } else {
+        const alt = Math.min(1, terreno[i] / 450);
+        const z = zona[i];
+        const tCor = Math.min(1, alt * 0.35 + marcaBase[i] * 9 + z * (0.4 + vol * 1.5));
+        cor = Math.round(PARAM.corCentro + tCor * distCor) % 360;
+        alfa = Math.min(1, (0.18 + 0.82 * frente * frente) * (0.85 + marcaBase[i] * 6 + z * (0.3 + vol * 2)));
+        tam = (0.7 + frente * 1.5) * (1 + z * vol * 1.2);
+      }
+      ctx.fillStyle = paleta[cor];
+      ctx.globalAlpha = alfa;
       ctx.beginPath();
-      ctx.arc(ecraX[i], ecraY[i], tamanhos[i] * 0.6, 0, Math.PI * 2);
+      ctx.arc(ecraX[i], ecraY[i], tam * 0.6, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  // Marcadores: um círculo em cima de cada marca (clicável)
+  centrosEcra.length = marcas.length;
+  for (let k = 0; k < marcas.length; k++) {
+    const M = marcas[k];
+    if (!M) { centrosEcra[k] = null; continue; }
+    const e = discoParaEsfera(M.X, M.Y);
+    const d = 1 + (alturaCentro[k] || 0);
+    const x = e.x * d, y = e.y * d, z = e.z * d;
+    const x1 = x * cY - z * sY, z1 = x * sY + z * cY;
+    const y2 = y * cX - z1 * sX, z2 = y * sX + z1 * cX;
+    const persp = DISTANCIA / (DISTANCIA - z2);
+    centrosEcra[k] = { x: cx + x1 * escala * persp, y: cy - y2 * escala * persp, visivel: z2 > -0.05 };
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1;
+  const pulso = 0.5 + 0.5 * Math.sin(t * 4);
+  for (let k = 0; k < centrosEcra.length; k++) {
+    const c = centrosEcra[k];
+    if (!c || !c.visivel) continue;
+    const atual = k === faixaAtual && SONS.length > 0;
+    ctx.strokeStyle = atual ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, atual ? 6 + vol * 10 + pulso * 2 : 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Linha do som que está a tocar até à informação no canto
+  const ca = centrosEcra[faixaAtual];
+  if (ca && ca.visivel && SONS.length > 0) {
+    const caixa = document.getElementById("info").getBoundingClientRect();
+    const fimX = caixa.left + Math.min(caixa.width, 220), fimY = caixa.top - 10;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath();
+    ctx.moveTo(ca.x, ca.y);
+    ctx.lineTo(fimX, fimY);
+    ctx.lineTo(caixa.left, fimY);
+    ctx.stroke();
   }
 
   requestAnimationFrame(desenhar);
