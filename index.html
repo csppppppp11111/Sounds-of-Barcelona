@@ -2,13 +2,9 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"<!DOCTYPE html>
-<html lang="pt">
-<head>
-  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sounds of Barcelona</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -21,7 +17,7 @@
   <!-- Canto superior direito: ABOUT e som -->
   <nav class="topo-dir">
     <button class="link" id="botaoAbout" type="button">ABOUT</button>
-    <button class="link" id="botaoSom" type="button">&#9675; SOUND OFF</button>
+    <button class="link" id="botaoSom" type="button">&#9675; CLICK TO LISTEN</button>
   </nav>
 
   <!-- A esfera -->
@@ -36,7 +32,7 @@
 
   <!-- Canto inferior direito: objeto (abre outra página) e adicionar som -->
   <div class="acoes-dir">
-    <a class="link" href="objeto.html">&#8599; GENERATE OBJECT</a>
+    <a class="link" href="objeto.html">&#8594; GENERATE OBJECT</a>
     <button class="link" id="botaoAdicionar" type="button">+ ADD YOUR SOUND</button>
   </div>
 
@@ -114,136 +110,10 @@
     })();
   </script>
 
-  <!-- O "?v=8" obriga o browser a ir buscar a versão nova dos ficheiros -->
+  <!-- O "?v=9" obriga o browser a ir buscar a versão nova dos ficheiros -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=8"></script>
-  <script src="comum.js?v=8"></script>
-  <script src="script.js?v=8"></script>
-</body>
-</html>>
-  <title>Sounds of Barcelona</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-  <!-- Canto superior esquerdo: título e número de sons no arquivo -->
-  <header class="topo-esq">
-    <h1 class="titulo">SOUNDS OF BARCELONA</h1>
-    <p class="contador" id="contador">AN ARCHIVE OF THE CITY'S SOUNDS</p>
-  </header>
-
-  <!-- Canto superior direito: ABOUT e som -->
-  <nav class="topo-dir">
-    <button class="link" id="botaoAbout">ABOUT</button>
-    <button class="link" id="botaoSom">&#9675; SOUND OFF</button>
-  </nav>
-
-  <!-- A esfera -->
-  <canvas id="tela"></canvas>
-
-  <!-- Canto inferior esquerdo: o som que está a tocar -->
-  <div class="info" id="info">
-    <p class="descricao" id="descricao"></p>
-    <p class="rua" id="rua"></p>
-    <p class="agora" id="agora"></p>
-  </div>
-
-  <!-- Canto inferior direito: objeto e adicionar som -->
-  <div class="acoes-dir">
-    <button class="link" id="botaoObjeto">&#8595; GENERATE OBJECT</button>
-    <button class="link" id="botaoAdicionar">+ ADD YOUR SOUND</button>
-  </div>
-
-  <!-- ===== Painel ABOUT ===== -->
-  <div class="painel painel-about" id="painelAbout" hidden>
-    <p class="painel-titulo">ABOUT</p>
-    <p class="texto">
-      SOUNDS OF BARCELONA is a collective archive of the city's sounds:
-      markets, metro, birds, voices, bells, construction.
-      Barcelona keeps changing, and so does the way it sounds.
-      Anyone can add a recording made in Barcelona, with the street,
-      the day and what we can hear.
-    </p>
-
-    <p class="etiqueta">HOW TO READ THE SPHERE</p>
-    <ul class="legenda">
-      <li><span class="simbolo">&#9711;</span> The top of the sphere is Barcelona, with its real relief: the sea in front, Montju&iuml;c, the city rising to the Collserola hills.</li>
-      <li><span class="simbolo">&#9673;</span> Every sound leaves a round mark where it was recorded. Click a mark to hear it.</li>
-      <li><span class="simbolo">&#8978;</span> Low sounds (metro, traffic) make wide marks.</li>
-      <li><span class="simbolo">&#9650;</span> Loud sounds make tall marks.</li>
-      <li><span class="simbolo">&#8728;</span> High sounds (birds, bells) add small bumps around the mark.</li>
-      <li><span class="simbolo">&#8776;</span> When a sound plays, its neighbourhood ripples with it.</li>
-    </ul>
-
-    <p class="etiqueta">THE OBJECT</p>
-    <p class="texto">
-      GENERATE OBJECT exports a sphere with a flat base, carrying the marks
-      of every sound in the archive, but not the city. A silent version of
-      Barcelona, to 3D print. Each print is a portrait of the archive on one day.
-    </p>
-
-    <p class="creditos">RELIEF: TERRAIN TILES ON AWS (MAPZEN) &middot; STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS &middot; SOUNDS STORED WITH SUPABASE</p>
-
-    <div class="acoes">
-      <span></span>
-      <button class="botao-linha" id="fecharAbout" type="button">CLOSE</button>
-    </div>
-  </div>
-
-  <!-- ===== Painel GENERATE OBJECT ===== -->
-  <div class="painel" id="painelObjeto" hidden>
-    <p class="painel-titulo">GENERATE OBJECT</p>
-    <p class="texto" id="textoObjeto">
-      A sphere with the marks of every sound on top, as a 3D-printable
-      file (STL). The base is flat, so it stands on the table.
-    </p>
-    <p class="etiqueta">SIZE</p>
-    <button class="botao-linha" id="objeto60" type="button">PROTOTYPE &middot; 6 CM</button>
-    <button class="botao-linha" id="objeto120" type="button">FINAL &middot; 12 CM</button>
-    <p class="mensagem" id="mensagemObjeto"></p>
-    <div class="acoes">
-      <span></span>
-      <button class="botao-linha" id="fecharObjeto" type="button">CLOSE</button>
-    </div>
-  </div>
-
-  <!-- ===== Painel ADD YOUR SOUND ===== -->
-  <div class="painel" id="painel" hidden>
-    <p class="painel-titulo">ADD A SOUND OF BARCELONA</p>
-
-    <p class="etiqueta">1 · RECORDING</p>
-    <label class="botao-linha">
-      CHOOSE FILE
-      <input type="file" id="campoFicheiro" accept="audio/*" hidden>
-    </label>
-    <span class="valor" id="nomeFicheiro">NO FILE CHOSEN</span>
-
-    <p class="etiqueta">2 · WHERE IN BARCELONA?</p>
-    <div class="linha-procura">
-      <input class="campo" id="campoLocal" type="text"
-             placeholder="CARRER DE MALLORCA 401" autocomplete="off" spellcheck="false">
-      <button class="botao-linha" id="botaoProcurar" type="button">FIND</button>
-    </div>
-    <button class="botao-linha" id="botaoGPS" type="button">OR USE MY LOCATION</button>
-    <p class="mensagem" id="mensagem"></p>
-
-    <p class="etiqueta">3 · WHEN?</p>
-    <input class="campo" id="campoData" type="date">
-
-    <p class="etiqueta">4 · WHAT CAN WE HEAR?</p>
-    <input class="campo" id="campoDescricao" type="text" maxlength="80"
-           placeholder="FISH SELLERS AT LA BOQUERIA" autocomplete="off">
-
-    <p class="creditos">STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS</p>
-
-    <div class="acoes">
-      <button class="botao-linha" id="botaoCancelar" type="button">CANCEL</button>
-      <button class="botao-linha principal" id="botaoConfirmar" type="button" disabled>ADD</button>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <script src="script.js"></script>
+  <script src="config.js?v=9"></script>
+  <script src="comum.js?v=9"></script>
+  <script src="script.js?v=9"></script>
 </body>
 </html>
