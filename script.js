@@ -7,10 +7,14 @@
    Precisa do comum.js (carregado antes, no index.html).
    ===================================================================== */
 
-/* 1. LISTA DE SONS — fica vazia: os sons vêm do Supabase */
+/* ---------------------------------------------------------------------
+   1. LISTA DE SONS — fica vazia: os sons vêm do Supabase
+   --------------------------------------------------------------------- */
 const SONS = [];
 
-/* 2. PARÂMETROS (podes mexer nestes números) */
+/* ---------------------------------------------------------------------
+   2. PARÂMETROS (podes mexer nestes números)
+   --------------------------------------------------------------------- */
 const PARAM = {
   pontosCidade: window.innerWidth < 700 ? 7000 : 12000, // pontos da cidade (topo e lados)
   pontosEsfera: window.innerWidth < 700 ? 1200 : 2000,  // pontos da parte de baixo
@@ -23,7 +27,9 @@ const PARAM = {
   corBorda: 28,         // laranja dourado (marcas dos sons)
 };
 
-/* 3. TELA */
+/* ---------------------------------------------------------------------
+   3. TELA
+   --------------------------------------------------------------------- */
 const tela = document.getElementById("tela");
 const ctx = tela.getContext("2d");
 let largura, altura, dpr;
@@ -39,9 +45,13 @@ function ajustarTela() {
 window.addEventListener("resize", ajustarTela);
 ajustarTela();
 
-/* 4. A ESFERA: Barcelona no topo e nos lados, o resto em pontos ténues */
+/* ---------------------------------------------------------------------
+   4. A ESFERA: Barcelona no topo, o resto em pontos ténues
+   Cada ponto do topo corresponde a um sítio da cidade (lat, lon).
+   --------------------------------------------------------------------- */
 const pontos = [];
 const ouro = Math.PI * (3 - Math.sqrt(5));
+// Topo (cidade): pontos espalhados por igual no disco
 for (let i = 0; i < PARAM.pontosCidade; i++) {
   const y = 1 - ((i + 0.5) / PARAM.pontosCidade) * (1 - CAP);
   const r = Math.sqrt(1 - y * y), th = ouro * i;
@@ -49,6 +59,7 @@ for (let i = 0; i < PARAM.pontosCidade; i++) {
   const d = esferaParaDisco(x, y, z);
   pontos.push({ x, y, z, cidade: true, X: d.X, Y: d.Y, s: d.s });
 }
+// Resto da esfera
 for (let i = 0; i < PARAM.pontosEsfera; i++) {
   const y = CAP - ((i + 0.5) / PARAM.pontosEsfera) * (1 + CAP);
   const r = Math.sqrt(1 - y * y), th = ouro * i;
@@ -64,12 +75,15 @@ const distZona  = new Float32Array(N);  // distância ao centro dessa zona
 const ecraX = new Float32Array(N), ecraY = new Float32Array(N), profundidade = new Float32Array(N);
 let relevoCarregado = false;
 
-/* 5. O RELEVO DE BARCELONA
-   Terrain Tiles (AWS / Mapzen): a cor de cada pixel guarda a altura.
-   Altura (m) = (vermelho * 256 + verde + azul / 256) - 32768. O mar tem altura 0 ou negativa. */
+/* ---------------------------------------------------------------------
+   5. O RELEVO REAL DE BARCELONA
+   Terrain Tiles (AWS / Mapzen): imagens em que a cor de cada pixel
+   guarda a altura. Altura (m) = (vermelho * 256 + verde + azul / 256) - 32768
+   O mar tem altura 0 ou negativa.
+   --------------------------------------------------------------------- */
 const TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
 const ZOOM = 12;
-let alturaEm = () => 0;
+let alturaEm = () => 0;   // função (lat, lon) -> metros; fica pronta depois de carregar
 
 function lonParaTile(lon) { return ((lon + 180) / 360) * 2 ** ZOOM; }
 function latParaTile(lat) {
@@ -102,8 +116,8 @@ function aplicarRelevo(funcao) {
 }
 
 // Relevo APROXIMADO (desenhado à mão): aparece logo ao abrir o site e
-// fica se o relevo real não carregar. Costa, planície a subir até
-// Collserola (Tibidabo, 512 m), Montjuïc e os turons.
+// fica se o relevo real não carregar. Linha de costa, planície a subir
+// até Collserola (Tibidabo, 512 m), Montjuïc e os turons.
 const COSTA = [ // [latitude, longitude da linha de costa]
   [41.30, 2.130], [41.33, 2.160], [41.355, 2.172], [41.372, 2.180], [41.380, 2.192],
   [41.392, 2.206], [41.405, 2.218], [41.420, 2.236], [41.45, 2.262], [41.50, 2.300],
@@ -136,7 +150,6 @@ function relevoAproximado(lat, lon) {
   h += 14 * Math.sin(lat * 900) * Math.sin(lon * 700); // pequenas ondulações
   return Math.max(1, h);
 }
-
 // Relevo REAL (Terrain Tiles): quando chega, substitui o aproximado
 async function carregarRelevo() {
   const x0 = Math.floor(lonParaTile(CENTRO.lon - RLON)), x1 = Math.floor(lonParaTile(CENTRO.lon + RLON));
@@ -167,7 +180,14 @@ function terrenoNoDisco(X, Y) {
   return (Math.max(0, alturaEm(geo.lat, geo.lon)) / 512) * PARAM.exagero;
 }
 
-/* 6. AS MARCAS DOS SONS NA ESFERA */
+/* ---------------------------------------------------------------------
+   6. AS MARCAS DOS SONS (redondas)
+   Cada som deixa uma lomba redonda no sítio onde foi gravado:
+     g = graves -> marca mais larga
+     v = volume -> marca mais alta
+     a = agudos -> pequenas lombas à volta
+   --------------------------------------------------------------------- */
+// Relevo de todas as marcas num ponto da cidade
 function marcasAqui(X, Y) { return marcasNoDisco(marcas, X, Y, PARAM.forcaMarcas); }
 
 const marcas = [];        // pela mesma ordem que SONS
@@ -219,7 +239,9 @@ aplicarRelevo(relevoAproximado);
 carregarRelevo().catch(() => console.warn("Relevo real não carregou: fica o relevo aproximado."));
 
 
-/* 9. TOCAR OS SONS */
+/* ---------------------------------------------------------------------
+   9. TOCAR OS SONS
+   --------------------------------------------------------------------- */
 const botaoSom   = document.getElementById("botaoSom");
 const textoDesc  = document.getElementById("descricao");
 const textoRua   = document.getElementById("rua");
@@ -227,10 +249,11 @@ const textoAgora = document.getElementById("agora");
 
 const audio = new Audio();
 audio.preload = "auto";
-audio.crossOrigin = "anonymous";
+audio.crossOrigin = "anonymous";   // para a esfera "ouvir" os sons do Supabase
 
 let contextoAudio = null, analisador = null, volumeSaida = null, espetro = null;
 let somLigado = false;
+let jaOuviu = false;    // já ligou o som pelo menos uma vez?
 let faixaAtual = 0;
 let falhasSeguidas = 0;
 
@@ -274,6 +297,7 @@ function volumeSuave(valor) {
 }
 
 function ligarSom() {
+  jaOuviu = true;
   prepararAudio();
   contextoAudio.resume();
   somLigado = true;
@@ -296,7 +320,10 @@ botaoSom.addEventListener("click", (e) => {
   somLigado ? desligarSom() : ligarSom();
 });
 
-// Clicar numa marca toca esse som; clicar noutro sítio liga o som
+/* Clicar na esfera:
+   - em cima de uma marca: toca esse som
+   - noutro sítio: liga o som (os navegadores só deixam tocar depois de um clique) */
+
 function marcaPerto(x, y) {
   let melhor = -1, melhorDist = 22;
   for (let i = 0; i < centrosEcra.length; i++) {
@@ -312,7 +339,7 @@ tela.addEventListener("click", (e) => {
   const i = marcaPerto(e.clientX, e.clientY);
   if (i >= 0) {
     prepararAudio();
-    if (!somLigado) { somLigado = true; contextoAudio.resume(); volumeSuave(1);
+    if (!somLigado) { somLigado = true; jaOuviu = true; contextoAudio.resume(); volumeSuave(1);
       botaoSom.textContent = "\u25CF SOUND ON"; botaoSom.classList.add("ligado"); }
     falhasSeguidas = 0;
     tocarFaixa(i);
@@ -320,18 +347,26 @@ tela.addEventListener("click", (e) => {
     ligarSom();
   }
 });
+// Clicar em qualquer sítio da página (fora dos botões) também liga o som.
+// Os browsers não deixam tocar som antes do primeiro clique: é uma regra deles.
+document.addEventListener("click", (e) => {
+  if (somLigado || jaOuviu) return;
+  if (e.target.closest("button, a, label, input, .painel")) return;
+  ligarSom();
+});
 tela.addEventListener("mousemove", (e) => {
   tela.classList.toggle("sobre-marca", marcaPerto(e.clientX, e.clientY) >= 0);
 });
 
-
-/* 10. CANTO INFERIOR ESQUERDO: descrição, rua · dia, coordenadas */
+/* ---------------------------------------------------------------------
+   10. CANTO INFERIOR ESQUERDO: descrição, rua · dia, coordenadas
+   --------------------------------------------------------------------- */
 const coord = { lat: 0, lon: 0, alvoLat: 0, alvoLon: 0, ativa: false };
 
 function formatar(lat, lon) {
   const la = Math.abs(lat).toFixed(5) + "° " + (lat >= 0 ? "N" : "S");
   const lo = Math.abs(lon).toFixed(5) + "° " + (lon >= 0 ? "E" : "W");
-  return la + "\u2003" + lo;
+  return la + " " + lo;
 }
 
 let temporizadorInfo = null;
@@ -368,8 +403,9 @@ function semSons() {
 }
 semSons();
 
-
-/* 11. CARREGAR O ARQUIVO (todos os sons guardados no Supabase) */
+/* ---------------------------------------------------------------------
+   11. CARREGAR O ARQUIVO (todos os sons guardados no Supabase)
+   --------------------------------------------------------------------- */
 async function carregarSonsGuardados() {
   const lista = await lerArquivo();
   const estavaVazio = SONS.length === 0;
@@ -399,8 +435,9 @@ async function carregarSonsGuardados() {
 }
 carregarSonsGuardados();
 
-
-/* 12. ADICIONAR UM SOM (gravação, sítio, dia, descrição) */
+/* ---------------------------------------------------------------------
+   12. ADICIONAR UM SOM (gravação, sítio, dia, descrição)
+   --------------------------------------------------------------------- */
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 const TAMANHO_MAXIMO_MB = 30;
 
@@ -670,8 +707,9 @@ botaoConfirmar.addEventListener("click", async () => {
   tocarFaixa(posicao);
 });
 
-
-/* 13. LER O SOM AO VIVO */
+/* ---------------------------------------------------------------------
+   13. LER O SOM AO VIVO
+   --------------------------------------------------------------------- */
 const somVivo = { graves: 0, medios: 0, agudos: 0, volume: 0, brilho: 0.5 };
 
 function media(inicio, fim) {
@@ -698,8 +736,9 @@ function lerSom(t) {
   somVivo.brilho += (Math.min(b, 1) - somVivo.brilho) * 0.05;
 }
 
-
-/* 14. DESENHAR A ESFERA */
+/* ---------------------------------------------------------------------
+   14. DESENHAR A ESFERA
+   --------------------------------------------------------------------- */
 const DISTANCIA = 3.4;
 const paleta = [];
 for (let h = 0; h < 360; h++) paleta.push(`hsl(${h}, 100%, 60%)`);
