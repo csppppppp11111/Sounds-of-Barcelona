@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sounds of Barcelona — The Object</title>
+  <link rel="stylesheet" href="style.css?v=9">
+</head>
+<body>
+
+  <!-- Canto superior esquerdo: título -->
+  <header class="topo-esq">
+    <h1 class="titulo">SOUNDS OF BARCELONA</h1>
+    <p class="contador">THE OBJECT</p>
+  </header>
+
+  <!-- Canto superior direito: voltar à esfera -->
+  <nav class="topo-dir">
+    <a class="link" href="index.html">&#8592; BACK TO THE SPHERE</a>
+  </nav>
+
+  <!-- O objeto em 3D -->
+  <canvas id="tela3d"></canvas>
+
+  <!-- Canto inferior esquerdo: o que é o objeto -->
+  <div class="info info-objeto">
+    <p class="descricao" id="estado">LOADING THE ARCHIVE&hellip;</p>
+    <p class="rua">A SPHERE WITH A FLAT BASE. EVERY BUMP IS A SOUND,</p>
+    <p class="rua">IN THE PLACE WHERE IT WAS RECORDED. THE CITY IS GONE.</p>
+    <p class="agora">DRAG TO TURN &middot; SCROLL TO ZOOM</p>
+  </div>
+
+  <!-- Canto inferior direito: descarregar para imprimir em 3D -->
+  <div class="acoes-dir">
+    <span class="contador">DOWNLOAD FOR 3D PRINTING (STL)</span>
+    <button class="link" id="stl60" type="button">&#8595; PROTOTYPE &middot; 6 CM</button>
+    <button class="link" id="stl120" type="button">&#8595; FINAL &middot; 12 CM</button>
+  </div>
+
+  <!-- Se alguma coisa falhar, o erro aparece escrito em baixo à esquerda -->
+  <script>
+    window.addEventListener("error", function (e) {
+      var el = document.getElementById("estado");
+      var ficheiro = (e.filename || "").split("/").pop().split("?")[0];
+      if (el) el.textContent = "ERROR IN " + (ficheiro || "THE PAGE") + ": " + e.message;
+    });
+    window.addEventListener("load", function () {
+      var el = document.getElementById("estado");
+      if (typeof lerArquivo === "undefined") el.textContent = "ERROR: comum.js IS MISSING OR BROKEN";
+      else if (typeof construirForma === "undefined") el.textContent = "ERROR: objeto.js IS MISSING OR BROKEN";
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js?v=9"></script>
+  <script src="comum.js?v=9"></script>
+  <script src="objeto.js?v=9"></script>
+</body>
+</html>
