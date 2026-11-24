@@ -8,28 +8,20 @@
 </head>
 <body>
 
-  <!-- Canto superior esquerdo: título do projeto -->
   <h1 class="titulo">SOUNDS OF BARCELONA</h1>
 
-  <!-- Canto superior direito: botão para ligar / desligar o som -->
   <button class="som" id="botaoSom">&#9675; SOUND OFF</button>
 
-  <!-- A bola de pontos é desenhada aqui -->
   <canvas id="tela"></canvas>
 
-  <!-- Canto inferior esquerdo: a rua e, por baixo, as coordenadas
-       do sítio onde o som foi gravado -->
   <p class="rua" id="rua"></p>
   <p class="agora" id="agora"></p>
 
-  <!-- Canto inferior direito: botão para adicionar uma gravação -->
   <button class="adicionar" id="botaoAdicionar">+ ADD YOUR SOUND</button>
 
-  <!-- Painel para adicionar um som (escondido até se carregar no botão) -->
   <div class="painel" id="painel" hidden>
     <p class="painel-titulo">ADD A SOUND OF BARCELONA</p>
 
-    <!-- 1. A gravação -->
     <p class="etiqueta">1 · RECORDING</p>
     <label class="botao-linha">
       CHOOSE FILE
@@ -37,7 +29,6 @@
     </label>
     <span class="valor" id="nomeFicheiro">NO FILE CHOSEN</span>
 
-    <!-- 2. Onde foi gravado: escrever a rua (ou usar o GPS) -->
     <p class="etiqueta">2 · WHERE DID YOU RECORD IT?</p>
     <span class="valor">WRITE THE STREET:</span>
     <div class="linha-procura">
@@ -47,11 +38,9 @@
     </div>
     <button class="botao-linha" id="botaoGPS" type="button">OR USE MY LOCATION</button>
 
-    <!-- Aviso: rua encontrada (dentro / fora de Barcelona) -->
     <p class="mensagem" id="mensagem"></p>
     <p class="creditos">STREET SEARCH &copy; OPENSTREETMAP CONTRIBUTORS</p>
 
-    <!-- 3. Confirmar -->
     <div class="acoes">
       <button class="botao-linha" id="botaoCancelar" type="button">CANCEL</button>
       <button class="botao-linha principal" id="botaoConfirmar" type="button" disabled>ADD</button>
@@ -59,6 +48,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
