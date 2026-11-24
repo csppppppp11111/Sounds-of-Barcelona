@@ -1,28 +1,14 @@
 /* =====================================================================
-   SOUNDS OF BARCELONA — script.js
+   SOUNDS OF BARCELONA — script.js  (a esfera)
    Um arquivo coletivo dos sons de Barcelona.
    O topo e os lados da esfera são Barcelona, com o relevo real.
    Cada som deixa uma marca redonda no sítio onde foi gravado;
    quando toca, a zona dele ondula com o som.
+   Precisa do comum.js (carregado antes, no index.html).
    ===================================================================== */
-
 
 /* 1. LISTA DE SONS — fica vazia: os sons vêm do Supabase */
 const SONS = [];
-
-
-/* 1b. SUPABASE (o endereço e a chave estão no config.js) */
-let db = null;
-try {
-  const url = window.SUPABASE_URL, chave = window.SUPABASE_CHAVE;
-  if (url && chave && !chave.includes("COLA_AQUI") && window.supabase) {
-    db = window.supabase.createClient(url.trim(), chave.trim());
-  }
-} catch (erro) {
-  console.warn("Supabase não ligado:", erro.message);
-  db = null;
-}
-
 
 /* 2. PARÂMETROS (podes mexer nestes números) */
 const PARAM = {
@@ -36,19 +22,6 @@ const PARAM = {
   corCentro: 262,       // violeta (cidade baixa)
   corBorda: 28,         // laranja dourado (marcas dos sons)
 };
-
-// Barcelona: limites aproximados (para validar moradas)
-const BARCELONA = { latMin: 41.317, latMax: 41.469, lonMin: 2.052, lonMax: 2.229 };
-
-// Barcelona cobre o topo e os lados da esfera: o centro da cidade fica
-// no topo e os bairros mais afastados descem pelos lados.
-// CAP = até onde desce a cidade (1 = só o topo, 0 = até ao meio, -1 = tudo).
-const CAP = -0.25;
-const CENTRO = { lat: 41.402, lon: 2.142 };
-const RAIO_KM = 9.0;
-const RLAT = RAIO_KM / 111.0;
-const RLON = RAIO_KM / (111.0 * Math.cos((CENTRO.lat * Math.PI) / 180));
-
 
 /* 3. TELA */
 const tela = document.getElementById("tela");
@@ -66,21 +39,7 @@ function ajustarTela() {
 window.addEventListener("resize", ajustarTela);
 ajustarTela();
 
-
-/* 4. A ESFERA: Barcelona no topo e nos lados */
-function discoParaGeo(X, Y) { return { lat: CENTRO.lat + Y * RLAT, lon: CENTRO.lon + X * RLON }; }
-function geoParaDisco(lat, lon) { return { X: (lon - CENTRO.lon) / RLON, Y: (lat - CENTRO.lat) / RLAT }; }
-
-function discoParaEsfera(X, Y) {
-  const s = Math.min(1, Math.hypot(X, Y)), a = Math.atan2(Y, X);
-  const y = 1 - s * s * (1 - CAP), r = Math.sqrt(Math.max(0, 1 - y * y));
-  return { x: r * Math.cos(a), y, z: r * Math.sin(a) };
-}
-function esferaParaDisco(x, y, z) {
-  const s = Math.sqrt(Math.max(0, (1 - y) / (1 - CAP))), a = Math.atan2(z, x);
-  return { X: s * Math.cos(a), Y: s * Math.sin(a), s };
-}
-
+/* 4. A ESFERA: Barcelona no topo e nos lados, o resto em pontos ténues */
 const pontos = [];
 const ouro = Math.PI * (3 - Math.sqrt(5));
 for (let i = 0; i < PARAM.pontosCidade; i++) {
@@ -97,18 +56,15 @@ for (let i = 0; i < PARAM.pontosEsfera; i++) {
 }
 
 const N = pontos.length;
-const terreno   = new Float32Array(N);
-const ehMar     = new Uint8Array(N);
-const marcaBase = new Float32Array(N);
-const zona      = new Float32Array(N);
-const distZona  = new Float32Array(N);
+const terreno   = new Float32Array(N);  // altura da cidade (metros)
+const ehMar     = new Uint8Array(N);    // 1 = mar
+const marcaBase = new Float32Array(N);  // relevo de todas as marcas
+const zona      = new Float32Array(N);  // 0-1: zona do som que está a tocar
+const distZona  = new Float32Array(N);  // distância ao centro dessa zona
 const ecraX = new Float32Array(N), ecraY = new Float32Array(N), profundidade = new Float32Array(N);
 let relevoCarregado = false;
 
-function bordaSuave(s) { const t = Math.min(1, Math.max(0, (1 - s) / 0.1)); return t * t * (3 - 2 * t); }
-
-
-/* 5. O RELEVO REAL DE BARCELONA
+/* 5. O RELEVO DE BARCELONA
    Terrain Tiles (AWS / Mapzen): a cor de cada pixel guarda a altura.
    Altura (m) = (vermelho * 256 + verde + azul / 256) - 32768. O mar tem altura 0 ou negativa. */
 const TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
@@ -130,6 +86,58 @@ function carregarImagem(url) {
   });
 }
 
+// Passa as alturas para os pontos da cidade
+function aplicarRelevo(funcao) {
+  alturaEm = funcao;
+  for (let i = 0; i < N; i++) {
+    const p = pontos[i];
+    if (!p.cidade) continue;
+    const geo = discoParaGeo(p.X, p.Y);
+    const h = alturaEm(geo.lat, geo.lon);
+    ehMar[i] = h <= 0.5 ? 1 : 0;
+    terreno[i] = Math.max(0, h);
+  }
+  relevoCarregado = true;
+  recalcularMarcas();
+}
+
+// Relevo APROXIMADO (desenhado à mão): aparece logo ao abrir o site e
+// fica se o relevo real não carregar. Costa, planície a subir até
+// Collserola (Tibidabo, 512 m), Montjuïc e os turons.
+const COSTA = [ // [latitude, longitude da linha de costa]
+  [41.30, 2.130], [41.33, 2.160], [41.355, 2.172], [41.372, 2.180], [41.380, 2.192],
+  [41.392, 2.206], [41.405, 2.218], [41.420, 2.236], [41.45, 2.262], [41.50, 2.300],
+];
+function lonDaCosta(lat) {
+  if (lat <= COSTA[0][0]) return COSTA[0][1];
+  for (let k = 1; k < COSTA.length; k++) {
+    if (lat <= COSTA[k][0]) {
+      const [la0, lo0] = COSTA[k - 1], [la1, lo1] = COSTA[k];
+      return lo0 + ((lat - la0) / (la1 - la0)) * (lo1 - lo0);
+    }
+  }
+  return COSTA[COSTA.length - 1][1];
+}
+function degrau(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+function colina(lat, lon, cLat, cLon, alturaM, raioKm) {
+  const dx = (lon - cLon) * 83.3, dy = (lat - cLat) * 111;
+  return alturaM * Math.exp(-(dx * dx + dy * dy) / (raioKm * raioKm));
+}
+function relevoAproximado(lat, lon) {
+  const d = (lonDaCosta(lat) - lon) * 83.3 * 0.85;   // km até ao mar
+  if (d <= 0) return 0;                               // mar
+  let h = 6 * d                                        // a planície sobe devagar
+        + 430 * degrau(4.5, 7.5, d)                    // a serra de Collserola
+        - 330 * degrau(8.5, 11.5, d);                  // e o outro lado da serra
+  h += colina(lat, lon, 41.364, 2.159, 150, 0.9);     // Montjuïc
+  h += colina(lat, lon, 41.419, 2.162, 160, 0.45);    // Turó de la Rovira
+  h += colina(lat, lon, 41.415, 2.147, 120, 0.4);     // Park Güell / El Carmel
+  h += colina(lat, lon, 41.422, 2.119, 70, 0.8);      // Tibidabo
+  h += 14 * Math.sin(lat * 900) * Math.sin(lon * 700); // pequenas ondulações
+  return Math.max(1, h);
+}
+
+// Relevo REAL (Terrain Tiles): quando chega, substitui o aproximado
 async function carregarRelevo() {
   const x0 = Math.floor(lonParaTile(CENTRO.lon - RLON)), x1 = Math.floor(lonParaTile(CENTRO.lon + RLON));
   const y0 = Math.floor(latParaTile(CENTRO.lat + RLAT)), y1 = Math.floor(latParaTile(CENTRO.lat - RLAT));
@@ -143,82 +151,42 @@ async function carregarRelevo() {
   }
   await Promise.all(pedidos);
   const dados = g.getImageData(0, 0, c.width, c.height).data;
-  alturaEm = (lat, lon) => {
+  aplicarRelevo((lat, lon) => {
     const px = Math.floor((lonParaTile(lon) - x0) * 256), py = Math.floor((latParaTile(lat) - y0) * 256);
     if (px < 0 || py < 0 || px >= c.width || py >= c.height) return 0;
     const i = (py * c.width + px) * 4;
     return dados[i] * 256 + dados[i + 1] + dados[i + 2] / 256 - 32768;
-  };
-  for (let i = 0; i < N; i++) {
-    const p = pontos[i];
-    if (!p.cidade) continue;
-    const geo = discoParaGeo(p.X, p.Y);
-    const h = alturaEm(geo.lat, geo.lon);
-    ehMar[i] = h <= 0.5 ? 1 : 0;
-    terreno[i] = Math.max(0, h);
-  }
-  relevoCarregado = true;
-  recalcularMarcas();
+  });
+  console.log("Relevo real carregado.");
 }
-carregarRelevo().catch((e) => console.warn("Relevo não carregou (a cidade fica lisa):", e));
 
+// Altura do terreno (em unidades da esfera) num ponto do disco
 function terrenoNoDisco(X, Y) {
   if (!relevoCarregado) return 0;
   const geo = discoParaGeo(X, Y);
   return (Math.max(0, alturaEm(geo.lat, geo.lon)) / 512) * PARAM.exagero;
 }
 
+/* 6. AS MARCAS DOS SONS NA ESFERA */
+function marcasAqui(X, Y) { return marcasNoDisco(marcas, X, Y, PARAM.forcaMarcas); }
 
-/* 6. AS MARCAS DOS SONS (redondas)
-   g = graves -> marca mais larga · v = volume -> mais alta · a = agudos -> lombas à volta */
-function prepararMarca(som) {
-  const s = som.assinatura;
-  const c = geoParaDisco(som.lat, som.lon);
-  const L = 0.06 + 0.07 * s.g;
-  const altura = 0.035 + 0.09 * s.v;
-  const satelites = [];
-  const n = Math.round(s.a * 6);
-  for (let k = 0; k < n; k++) {
-    const ang = (k / n) * Math.PI * 2 + s.m * 3;
-    satelites.push({ X: c.X + Math.cos(ang) * L * 1.7, Y: c.Y + Math.sin(ang) * L * 1.7 });
-  }
-  return { X: c.X, Y: c.Y, L, altura, satelites };
-}
-
-function relevoDaMarca(M, X, Y) {
-  const d = Math.hypot(X - M.X, Y - M.Y);
-  if (d > M.L * 4) return 0;
-  let r = M.altura * Math.exp(-((d / M.L) ** 2));
-  const l2 = M.L * 0.45;
-  for (const sat of M.satelites) {
-    const ds = Math.hypot(X - sat.X, Y - sat.Y);
-    r += M.altura * 0.45 * Math.exp(-((ds / l2) ** 2));
-  }
-  return r;
-}
-
-function marcasNoDisco(X, Y) {
-  let r = 0;
-  for (const M of marcas) if (M) r += relevoDaMarca(M, X, Y);
-  return 0.28 * Math.tanh((r * PARAM.forcaMarcas) / 0.28);
-}
-
-const marcas = [];
-const alturaCentro = [];
+const marcas = [];        // pela mesma ordem que SONS
+const alturaCentro = [];  // altura no centro de cada marca (para os marcadores)
 
 function recalcularMarcas() {
   for (let i = 0; i < N; i++) {
     const p = pontos[i];
-    marcaBase[i] = p.cidade ? marcasNoDisco(p.X, p.Y) * bordaSuave(p.s) : 0;
+    marcaBase[i] = p.cidade ? marcasAqui(p.X, p.Y) * bordaSuave(p.s) : 0;
   }
   for (let k = 0; k < marcas.length; k++) {
     const M = marcas[k];
-    alturaCentro[k] = M ? terrenoNoDisco(M.X, M.Y) + marcasNoDisco(M.X, M.Y) : 0;
+    alturaCentro[k] = M ? terrenoNoDisco(M.X, M.Y) + marcasAqui(M.X, M.Y) : 0;
   }
   alturaCentro.length = marcas.length;
   if (SONS.length) marcarDestaque(faixaAtual);
 }
 
+// A zona do som que está a tocar (o bairro à volta da marca)
 function marcarDestaque(indice) {
   zona.fill(0);
   const M = marcas[indice];
@@ -246,79 +214,9 @@ function atualizarContador() {
             : n + (n === 1 ? " SOUND" : " SOUNDS") + " IN THE ARCHIVE";
 }
 
-
-/* 7. IMPRESSÃO DIGITAL DO SOM */
-function fft(re, im) {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i++) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const ang = -2 * Math.PI / len;
-    const wr = Math.cos(ang), wi = Math.sin(ang);
-    for (let i = 0; i < n; i += len) {
-      let cr = 1, ci = 0;
-      for (let k = 0; k < len / 2; k++) {
-        const ar = re[i + k + len / 2] * cr - im[i + k + len / 2] * ci;
-        const ai = re[i + k + len / 2] * ci + im[i + k + len / 2] * cr;
-        re[i + k + len / 2] = re[i + k] - ar; im[i + k + len / 2] = im[i + k] - ai;
-        re[i + k] += ar; im[i + k] += ai;
-        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
-      }
-    }
-  }
-}
-
-async function analisarSom(fonte) {
-  const dados = await (fonte instanceof Blob ? fonte.arrayBuffer()
-                                             : fetch(fonte).then((r) => r.arrayBuffer()));
-  const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  const tmp = new Offline(1, 1, 44100);
-  const buffer = await new Promise((ok, falha) => tmp.decodeAudioData(dados, ok, falha));
-  const canal = buffer.getChannelData(0);
-  const sr = buffer.sampleRate;
-  const TAM = 2048, BOCADOS = 48;
-  const limites = [60, 150, 300, 600, 1200, 2400, 4800, 9600, 16000];
-  const bandas = new Array(8).fill(0);
-  const energias = [];
-  const re = new Float32Array(TAM), im = new Float32Array(TAM);
-  const total = Math.max(1, canal.length - TAM);
-
-  for (let b = 0; b < BOCADOS; b++) {
-    const inicio = Math.floor((total * b) / (BOCADOS - 1 || 1));
-    let soma2 = 0;
-    for (let i = 0; i < TAM; i++) {
-      const s = canal[inicio + i] || 0;
-      soma2 += s * s;
-      re[i] = s * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (TAM - 1)));
-      im[i] = 0;
-    }
-    energias.push(Math.sqrt(soma2 / TAM));
-    fft(re, im);
-    for (let k = 0; k < 8; k++) {
-      const de = Math.floor((limites[k] * TAM) / sr), ate = Math.min(TAM / 2, Math.floor((limites[k + 1] * TAM) / sr));
-      let e = 0;
-      for (let j = de; j < ate; j++) e += Math.hypot(re[j], im[j]);
-      bandas[k] += ate > de ? e / (ate - de) : 0;
-    }
-  }
-  for (let k = 0; k < 8; k++) bandas[k] *= Math.sqrt((limites[k] + limites[k + 1]) / 2 / 100);
-  const maxB = Math.max(...bandas) || 1;
-  const n = bandas.map((b) => b / maxB);
-  const media = energias.reduce((a, b) => a + b, 0) / energias.length || 0;
-  const maxE = Math.max(...energias);
-  const arred = (x) => Math.round(Math.min(1, Math.max(0, x)) * 1000) / 1000;
-  return {
-    g: arred((n[0] + n[1] + n[2]) / 3),
-    m: arred((n[3] + n[4] + n[5]) / 3),
-    a: arred((n[6] + n[7]) / 2),
-    v: arred(media * 5),
-    p: arred(media > 0 ? (maxE / media - 1) / 4 : 0),
-  };
-}
+// Liga o relevo: primeiro o aproximado (logo), depois o real (quando chegar)
+aplicarRelevo(relevoAproximado);
+carregarRelevo().catch(() => console.warn("Relevo real não carregou: fica o relevo aproximado."));
 
 
 /* 9. TOCAR OS SONS */
@@ -380,7 +278,7 @@ function ligarSom() {
   contextoAudio.resume();
   somLigado = true;
   volumeSuave(1);
-  botaoSom.textContent = "\u25CF SOUND ON";
+  botaoSom.textContent = "● SOUND ON";
   botaoSom.classList.add("ligado");
   if (!audio.src) tocarFaixa(0);
   else audio.play().catch(() => {});
@@ -389,7 +287,7 @@ function ligarSom() {
 function desligarSom() {
   somLigado = false;
   if (volumeSaida) volumeSuave(0);
-  botaoSom.textContent = "\u25CB SOUND OFF";
+  botaoSom.textContent = "○ SOUND OFF";
   botaoSom.classList.remove("ligado");
 }
 
@@ -430,12 +328,6 @@ tela.addEventListener("mousemove", (e) => {
 /* 10. CANTO INFERIOR ESQUERDO: descrição, rua · dia, coordenadas */
 const coord = { lat: 0, lon: 0, alvoLat: 0, alvoLon: 0, ativa: false };
 
-function formatarData(iso) {
-  if (!iso) return "";
-  const [a, m, d] = iso.slice(0, 10).split("-");
-  return d + "." + m + "." + a;
-}
-
 function formatar(lat, lon) {
   const la = Math.abs(lat).toFixed(5) + "° " + (lat >= 0 ? "N" : "S");
   const lo = Math.abs(lon).toFixed(5) + "° " + (lon >= 0 ? "E" : "W");
@@ -448,7 +340,7 @@ function mostrarInfo(s) {
   coord.alvoLat = s.lat;
   coord.alvoLon = s.lon;
   coord.ativa = true;
-  const linhaRua = [s.rua, formatarData(s.data)].filter(Boolean).join("  \u00B7  ");
+  const linhaRua = [s.rua, formatarData(s.data)].filter(Boolean).join("  ·  ");
   clearTimeout(temporizadorInfo);
   textoDesc.style.opacity = 0;
   textoRua.style.opacity = 0;
@@ -472,31 +364,17 @@ function semSons() {
   coord.ativa = false;
   textoDesc.textContent = "";
   textoRua.textContent = "";
-  textoAgora.textContent = "NO SOUNDS YET \u2014 ADD YOURS";
+  textoAgora.textContent = "NO SOUNDS YET — ADD YOURS";
 }
 semSons();
 
 
 /* 11. CARREGAR O ARQUIVO (todos os sons guardados no Supabase) */
 async function carregarSonsGuardados() {
-  if (!db) return;
-  const { data, error } = await db
-    .from("sons")
-    .select("*")
-    .eq("aprovado", true)
-    .order("criado", { ascending: true });
-  if (error) { console.warn("Supabase:", error.message); return; }
-
+  const lista = await lerArquivo();
   const estavaVazio = SONS.length === 0;
   const semAssinatura = [];
-  for (const linha of data) {
-    const som = {
-      ficheiro: db.storage.from("sons").getPublicUrl(linha.ficheiro).data.publicUrl,
-      rua: linha.rua, lat: linha.lat, lon: linha.lon,
-      data: linha.data || linha.criado,
-      descricao: linha.descricao || "",
-      assinatura: linha.assinatura || null,
-    };
+  for (const som of lista) {
     SONS.push(som);
     marcas.push(som.assinatura ? prepararMarca(som) : null);
     if (!som.assinatura) semAssinatura.push(som);
@@ -510,6 +388,7 @@ async function carregarSonsGuardados() {
     if (contextoAudio) tocarFaixa(0); else marcarDestaque(0);
   }
 
+  // Sons antigos sem impressão digital: analisa-os agora, um a um
   for (const som of semAssinatura) {
     try {
       som.assinatura = await analisarSom(som.ficheiro);
@@ -590,14 +469,8 @@ const botaoCancelar  = document.getElementById("botaoCancelar");
 let novoFicheiro = null;
 let novoLocal = null;
 
-function hojeISO() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
 function abrirPainel() {
   document.getElementById("painelAbout").hidden = true;
-  document.getElementById("painelObjeto").hidden = true;
   painel.hidden = false;
   botaoAdicionar.hidden = true;
   campoData.max = hojeISO();
@@ -627,6 +500,7 @@ function dataValida() {
   return /^\d{4}-\d{2}-\d{2}$/.test(campoData.value) && campoData.value <= hojeISO();
 }
 
+// O botão ADD só fica ativo com tudo preenchido
 function verificarPronto() {
   botaoConfirmar.disabled = !(novoFicheiro && novoLocal && dataValida() && campoDescricao.value.trim());
 }
@@ -634,7 +508,7 @@ function verificarPronto() {
 function aProcurar(sim) {
   botaoProcurar.disabled = sim;
   botaoGPS.disabled = sim;
-  botaoProcurar.textContent = sim ? "\u2026" : "FIND";
+  botaoProcurar.textContent = sim ? "…" : "FIND";
 }
 
 function lerCoordenadas(texto) {
@@ -645,20 +519,20 @@ function lerCoordenadas(texto) {
 
 function aceitar(lat, lon, rua) {
   novoLocal = { lat, lon, rua };
-  const titulo = rua ? rua.toUpperCase() + " \u2014 " : "";
-  mostrarMensagem("\u2713 " + titulo + formatar(lat, lon), "ok");
+  const titulo = rua ? rua.toUpperCase() + " — " : "";
+  mostrarMensagem("✓ " + titulo + formatar(lat, lon), "ok");
   verificarPronto();
 }
 
 function recusar(texto) {
   novoLocal = null;
-  mostrarMensagem("\u2717 " + texto, "erro");
+  mostrarMensagem("✗ " + texto, "erro");
   verificarPronto();
 }
 
 async function validarCoordenadas(lat, lon) {
   aProcurar(true);
-  mostrarMensagem("LOOKING UP THE STREET\u2026", "");
+  mostrarMensagem("LOOKING UP THE STREET…", "");
   try {
     const r = await ruaDasCoordenadas(lat, lon);
     if (r.barcelona) aceitar(lat, lon, r.rua);
@@ -676,7 +550,7 @@ async function procurar() {
   const c = lerCoordenadas(texto);
   if (c) { validarCoordenadas(c.lat, c.lon); return; }
   aProcurar(true);
-  mostrarMensagem("SEARCHING\u2026", "");
+  mostrarMensagem("SEARCHING…", "");
   try {
     const r = await procurarRua(texto);
     if (r) aceitar(r.lat, r.lon, r.rua);
@@ -697,10 +571,10 @@ campoFicheiro.addEventListener("change", () => {
   if (!f) { nomeFicheiro.textContent = "NO FILE CHOSEN"; verificarPronto(); return; }
   if (!f.type.startsWith("audio")) {
     nomeFicheiro.textContent = "NO FILE CHOSEN";
-    mostrarMensagem("\u2717 THIS FILE IS NOT AUDIO (USE MP3, WAV, M4A...)", "erro");
+    mostrarMensagem("✗ THIS FILE IS NOT AUDIO (USE MP3, WAV, M4A...)", "erro");
   } else if (f.size > TAMANHO_MAXIMO_MB * 1024 * 1024) {
     nomeFicheiro.textContent = "NO FILE CHOSEN";
-    mostrarMensagem("\u2717 FILE TOO BIG (MAX " + TAMANHO_MAXIMO_MB + " MB)", "erro");
+    mostrarMensagem("✗ FILE TOO BIG (MAX " + TAMANHO_MAXIMO_MB + " MB)", "erro");
   } else {
     novoFicheiro = f;
     nomeFicheiro.textContent = f.name;
@@ -721,13 +595,13 @@ campoDescricao.addEventListener("input", verificarPronto);
 
 botaoGPS.addEventListener("click", () => {
   if (!navigator.geolocation) { recusar("THIS BROWSER CANNOT GIVE YOUR LOCATION"); return; }
-  mostrarMensagem("LOCATING\u2026", "");
+  mostrarMensagem("LOCATING…", "");
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       campoLocal.value = "";
       validarCoordenadas(+pos.coords.latitude.toFixed(5), +pos.coords.longitude.toFixed(5));
     },
-    () => recusar("LOCATION NOT AVAILABLE \u2014 WRITE THE STREET"),
+    () => recusar("LOCATION NOT AVAILABLE — WRITE THE STREET"),
     { enableHighAccuracy: true, timeout: 10000 }
   );
 });
@@ -752,6 +626,7 @@ async function enviarParaSupabase(ficheiro, som) {
   if (linha.error) throw linha.error;
 }
 
+// ADD: analisa o som, envia-o, deixa a marca na esfera e toca-o
 botaoConfirmar.addEventListener("click", async () => {
   if (botaoConfirmar.disabled) return;
   const ficheiro = novoFicheiro;
@@ -765,7 +640,7 @@ botaoConfirmar.addEventListener("click", async () => {
 
   botaoConfirmar.disabled = true;
   botaoCancelar.disabled = true;
-  mostrarMensagem("LISTENING TO YOUR SOUND\u2026", "");
+  mostrarMensagem("LISTENING TO YOUR SOUND…", "");
   try {
     som.assinatura = await analisarSom(ficheiro);
   } catch (erro) {
@@ -773,13 +648,13 @@ botaoConfirmar.addEventListener("click", async () => {
   }
 
   if (db) {
-    mostrarMensagem("SENDING\u2026", "");
+    mostrarMensagem("SENDING…", "");
     try {
       await enviarParaSupabase(ficheiro, som);
-      mostrarMensagem("\u2713 SENT! YOUR SOUND IS NOW PART OF THE SPHERE.", "ok");
+      mostrarMensagem("✓ SENT! YOUR SOUND IS NOW PART OF THE SPHERE.", "ok");
     } catch (erro) {
       console.warn("Supabase:", erro.message || erro);
-      mostrarMensagem("\u2717 COULD NOT SAVE IT. IT WILL ONLY PLAY HERE.", "erro");
+      mostrarMensagem("✗ COULD NOT SAVE IT. IT WILL ONLY PLAY HERE.", "erro");
     }
   }
   botaoCancelar.disabled = false;
@@ -794,112 +669,6 @@ botaoConfirmar.addEventListener("click", async () => {
   if (!somLigado) ligarSom();
   tocarFaixa(posicao);
 });
-
-
-/* 12b. PAINÉIS ABOUT E GENERATE OBJECT (só um painel aberto de cada vez) */
-const painelAbout  = document.getElementById("painelAbout");
-const painelObjeto = document.getElementById("painelObjeto");
-const mensagemObjeto = document.getElementById("mensagemObjeto");
-
-function abrirSo(qual) {
-  for (const p of [painel, painelAbout, painelObjeto]) if (p !== qual) p.hidden = true;
-  botaoAdicionar.hidden = false;
-  qual.hidden = false;
-}
-document.getElementById("botaoAbout").addEventListener("click", () => abrirSo(painelAbout));
-document.getElementById("fecharAbout").addEventListener("click", () => { painelAbout.hidden = true; });
-document.getElementById("botaoObjeto").addEventListener("click", () => {
-  mensagemObjeto.textContent = "";
-  mensagemObjeto.className = "mensagem";
-  abrirSo(painelObjeto);
-});
-document.getElementById("fecharObjeto").addEventListener("click", () => { painelObjeto.hidden = true; });
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { painelAbout.hidden = true; painelObjeto.hidden = true; }
-});
-
-
-/* 12c. GENERATE OBJECT — esfera com base plana e as marcas dos sons (sem a cidade) */
-const OBJETO = {
-  linhas: 180,          // detalhe de cima a baixo
-  colunas: 360,         // detalhe à volta
-  corteBase: -0.62,     // altura do corte da base (-1 = fundo da esfera)
-  forcaMarcas: 1.6,     // as marcas um pouco mais altas no objeto
-};
-
-function raioObjeto(x, y, z) {
-  if (y <= CAP) return 1;
-  const d = esferaParaDisco(x, y, z);
-  return 1 + OBJETO.forcaMarcas * marcasNoDisco(d.X, d.Y) * bordaSuave(d.s);
-}
-
-function gerarSTL(diametroMm) {
-  const NL = OBJETO.linhas, NC = OBJETO.colunas;
-  const v = [];
-  const ponto = (lat, lon) => {
-    const x = Math.cos(lat) * Math.cos(lon), y = Math.sin(lat), z = Math.cos(lat) * Math.sin(lon);
-    const d = raioObjeto(x, y, z);
-    return [x * d, Math.max(y * d, OBJETO.corteBase), z * d];
-  };
-  const sul = v.length; v.push(ponto(-Math.PI / 2, 0));
-  for (let l = 1; l < NL; l++) {
-    const lat = -Math.PI / 2 + (Math.PI * l) / NL;
-    for (let c = 0; c < NC; c++) v.push(ponto(lat, (2 * Math.PI * c) / NC));
-  }
-  const norte = v.length; v.push(ponto(Math.PI / 2, 0));
-  const idx = (l, c) => 1 + (l - 1) * NC + (c % NC);
-
-  const tri = [];
-  for (let c = 0; c < NC; c++) tri.push([sul, idx(1, c), idx(1, c + 1)]);
-  for (let l = 1; l < NL - 1; l++) {
-    for (let c = 0; c < NC; c++) {
-      const a = idx(l, c), b = idx(l, c + 1), cc = idx(l + 1, c + 1), d = idx(l + 1, c);
-      tri.push([a, cc, b]); tri.push([a, d, cc]);
-    }
-  }
-  for (let c = 0; c < NC; c++) tri.push([norte, idx(NL - 1, c + 1), idx(NL - 1, c)]);
-
-  let maxH = 0, minY = Infinity;
-  for (const p of v) { maxH = Math.max(maxH, Math.hypot(p[0], p[2])); minY = Math.min(minY, p[1]); }
-  const k = diametroMm / 2 / maxH;
-  const final = v.map((p) => [p[0] * k, -p[2] * k, (p[1] - minY) * k]);
-
-  const buffer = new ArrayBuffer(84 + tri.length * 50);
-  const dv = new DataView(buffer);
-  const cabecalho = "SOUNDS OF BARCELONA - " + SONS.length + " sounds - " + hojeISO();
-  for (let i = 0; i < 80; i++) dv.setUint8(i, i < cabecalho.length ? cabecalho.charCodeAt(i) & 127 : 32);
-  dv.setUint32(80, tri.length, true);
-  let o = 84;
-  for (const [ia, ib, ic] of tri) {
-    const A = final[ia], B = final[ib], C = final[ic];
-    const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2];
-    const wx = C[0] - A[0], wy = C[1] - A[1], wz = C[2] - A[2];
-    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
-    const nn = Math.hypot(nx, ny, nz) || 1;
-    for (const val of [nx / nn, ny / nn, nz / nn, ...A, ...B, ...C]) { dv.setFloat32(o, val, true); o += 4; }
-    dv.setUint16(o, 0, true); o += 2;
-  }
-  let maxZ = 0;
-  for (const p of final) if (p[2] > maxZ) maxZ = p[2];
-  return { blob: new Blob([buffer], { type: "model/stl" }), alturaMm: Math.round(maxZ * 10) / 10 };
-}
-
-function descarregarObjeto(diametroMm) {
-  mensagemObjeto.className = "mensagem";
-  mensagemObjeto.textContent = "BUILDING\u2026";
-  setTimeout(() => {
-    const r = gerarSTL(diametroMm);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(r.blob);
-    a.download = "sounds-of-barcelona_" + hojeISO() + "_" + SONS.length + "-sounds_" + diametroMm + "mm.stl";
-    document.body.appendChild(a); a.click(); a.remove();
-    mensagemObjeto.className = "mensagem ok";
-    mensagemObjeto.textContent = "\u2713 " + SONS.length + " SOUNDS \u00B7 " + diametroMm / 10 +
-      " CM MAX \u00B7 " + (r.alturaMm / 10).toFixed(1) + " CM HIGH";
-  }, 50);
-}
-document.getElementById("objeto60").addEventListener("click", () => descarregarObjeto(60));
-document.getElementById("objeto120").addEventListener("click", () => descarregarObjeto(120));
 
 
 /* 13. LER O SOM AO VIVO */
@@ -934,7 +703,7 @@ function lerSom(t) {
 const DISTANCIA = 3.4;
 const paleta = [];
 for (let h = 0; h < 360; h++) paleta.push(`hsl(${h}, 100%, 60%)`);
-const centrosEcra = [];
+const centrosEcra = [];   // onde está cada marca no ecrã (para os cliques)
 
 function desenhar(tempoMs) {
   const t = tempoMs / 1000;
@@ -950,6 +719,7 @@ function desenhar(tempoMs) {
   const cx = largura / 2, cy = altura * 0.52;
   const escala = Math.min(largura, altura) * PARAM.tamanho * (1 + somVivo.graves * 0.02);
 
+  // A esfera inclinada para vermos o topo e os lados; oscila devagar
   const ry = 2.36 + Math.sin(t * 0.07) * PARAM.oscilacao;
   const rx = 0.88 + Math.sin(t * 0.05) * 0.08;
   const cY = Math.cos(ry), sY = Math.sin(ry), cX = Math.cos(rx), sX = Math.sin(rx);
@@ -973,6 +743,7 @@ function desenhar(tempoMs) {
     profundidade[i] = z2;
   }
 
+  // Primeiro os pontos de trás, depois os da frente
   for (let passo = 0; passo < 2; passo++) {
     for (let i = 0; i < N; i++) {
       const z2 = profundidade[i];
